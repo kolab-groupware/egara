@@ -6,7 +6,10 @@ all: app
 deps:
 	rebar get-deps
 
-app: deps
+deps-up: deps
+	rebar update-deps
+
+app: deps-up
 	ENABLE_STATIC=no rebar compile
 
 run:
