@@ -2,3 +2,5 @@
 .rebar
 erl_crash.dump
 ebin
+deps
+.*.swp
