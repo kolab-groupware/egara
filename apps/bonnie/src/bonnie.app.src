@@ -1,0 +1,12 @@
+{application, bonnie,
+ [
+  {description, "Kolab event and groupware data archival, e-discovery and data loss prevention system."},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { bonnie, []}},
+  {env, []}
+ ]}.
