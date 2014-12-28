@@ -9,7 +9,7 @@ deps:
 deps-up: deps
 	rebar update-deps
 
-app: deps-up
+app: deps
 	ENABLE_STATIC=no rebar compile
 
 run:
