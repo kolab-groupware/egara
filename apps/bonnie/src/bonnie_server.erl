@@ -16,12 +16,20 @@
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-     terminate/2, code_change/3]).
+     terminate/2, code_change/3, baseline/1]).
 
 -record(state, {num_pokes = 0, num_prods = 0}).
 
 %% API
 start_link()    -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+baseline(N) ->
+    gen_server:call(?MODULE, {baseline, N}).
+
+spin(ParentPid, Number) ->
+    %%io:fwrite("Hoi = ~p~n", [ParentPid]),
+    ParentPid ! { completed, Number - 1 },
+    exit(self()).
 
 poke()          -> poke(1).
 poke_twice()    -> poke(2).
@@ -37,6 +45,12 @@ num_prods()     -> gen_server:call(?MODULE, num_prods).
 %% gen_server callbacks
 init([]) ->
     {ok, #state{}}.
+
+handle_call({baseline, N}, _From, State) ->
+    SPid = self(),
+    io:fwrite("Spawning ~B procs from process ~p at ~w~n", [N, SPid, now()]),
+    spawn(fun() -> spin(SPid, N) end),
+    {reply, true, State};
 
 handle_call(num_pokes, _From, State = #state{ num_pokes = PokeCount }) ->
     {reply, PokeCount, State};
@@ -58,6 +72,17 @@ handle_call({poke, N}, _From, State) ->
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
+
+handle_info({completed, 0}, State) ->
+    io:fwrite("completed at ~w~n", [now()]),
+    {noreply, State};
+
+handle_info({completed, N}, State) ->
+    %%io:fwrite("completed~n"),
+    %%if N rem 1000 =:= 0 -> io:fwrite("completed ~B~n", [N]); true -> true end,
+    SPid = self(),
+    spawn(fun() -> spin(SPid, N) end),
+    {noreply, State};
 
 handle_info(_Info, State) ->
     {noreply, State}.
