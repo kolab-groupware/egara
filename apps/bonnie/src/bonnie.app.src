@@ -7,6 +7,9 @@
                   kernel,
                   stdlib,
                   czmq,
+                  riakc,
+                  poolboy,
+                  jobs,
                   lager
                  ]},
   {mod, { bonnie, []}},
