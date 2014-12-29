@@ -1,0 +1,13 @@
+diff --git a/rebar.config b/rebar.config
+index fba5b5f..09cce6a 100644
+--- a/rebar.config
++++ b/rebar.config
+@@ -1,7 +1,7 @@
+ {erl_opts, [debug_info]}.
+ 
+ {deps,[
+-       {meck, "0.8.*", {git, "git://github.com/basho/meck.git", {tag, "0.8.1p1"}}}
++       {meck, "0.8.*", {git, "git://github.com/eproxus/meck.git", {tag, "0.8.2"}}}
+       ]}.
+ 
+ {clean_files, ["*~","**/*~","**/*.beam","logs/*","test/Emakefile"]}.

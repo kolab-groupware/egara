@@ -1,0 +1,20 @@
+diff --git a/rebar.config b/rebar.config
+index bc2d115..bcbce98 100644
+--- a/rebar.config
++++ b/rebar.config
+@@ -8,12 +8,12 @@
+ {clean_files, ["*~","*/*~","*/*.xfm","test/*.beam"]}.
+ 
+ {deps, [
+-        {meck, ".*",
+-         {git, "git://github.com/eproxus/meck.git", "0.7.2"}},
++        {meck, "0.8.*",
++         {git, "git://github.com/eproxus/meck.git", { tag, "0.8.2"} } },
+         {parse_trans, ".*",
+          {git, "git://github.com/esl/parse_trans.git", "2.8"}},
+ 	{edown, ".*",
+-         {git, "git://github.com/esl/edown.git", "0.4"}}
++         {git, "git://github.com/esl/edown.git", "HEAD"}}
+        ]}.
+ 
+ {edoc_opts, [{doclet, edown_doclet},
