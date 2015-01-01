@@ -17,7 +17,7 @@
 
 %% API
 
-start_link()    -> gen_server:start_link({local, ?MODULE}, ?MODULE, node(), []).  %%TODO: this should pass an list of the nodes for init/1
+start_link()    -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 notification_received(Notification) -> gen_server:cast(?MODULE, { notification, Notification }).
 poke()          -> poke(1).
 poke(N)         -> gen_server:call(?MODULE, {poke, N}).
@@ -25,9 +25,7 @@ num_pokes()     -> gen_server:call(?MODULE, num_pokes).
 
 
 %% gen_server callbacks
-init(Nodes) ->
-%%    notification_store:install(Nodes), %% FIXME:  move to supervisor?
-    notification_store:start(),
+init([]) ->
     {ok, #state{}}.
 
 handle_call(num_pokes, _From, State = #state{ num_pokes = PokeCount }) ->

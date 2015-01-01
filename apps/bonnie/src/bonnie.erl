@@ -17,7 +17,8 @@ start(_StartType, _StartArgs) ->
     %%  - install the mnesia schema
     error_logger:info_msg("Starting Bonnie ... ~n"),
     application:set_env(mnesia, dir, "db"),
-    application:start(mnesia),
+    notification_store:install([node() | nodes()]),
+    notification_store:start(),
     bonnie_sup:start_link().
 
 stop(_State) ->
