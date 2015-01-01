@@ -1,4 +1,3 @@
-application:start(mnesia).
 application:start(jsx).
 application:start(protobuffs).
 application:start(riak_pb).
