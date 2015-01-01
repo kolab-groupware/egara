@@ -1,4 +1,4 @@
-application:start(czmq).
+application:start(jsx).
 application:start(protobuffs).
 application:start(riak_pb).
 application:start(riakc).
