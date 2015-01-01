@@ -3,8 +3,8 @@
 -behaviour(gen_server).
 
 %% API
-%% API
 -export([ start_link/0
+        , notification_received/1
         , poke/0
         , poke/1
         , num_pokes/0
@@ -13,18 +13,21 @@
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--record(state, {num_pokes = 0, num_prods = 0}).
+-record(state, {num_pokes = 0}).
 
 %% API
-start_link()    -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+start_link()    -> gen_server:start_link({local, ?MODULE}, ?MODULE, node(), []).  %%TODO: this should pass an list of the nodes for init/1
+notification_received(Notification) -> gen_server:cast(?MODULE, { notification, Notification }).
 poke()          -> poke(1).
 poke(N)         -> gen_server:call(?MODULE, {poke, N}).
 num_pokes()     -> gen_server:call(?MODULE, num_pokes).
 
 
 %% gen_server callbacks
-init([]) ->
+init(Nodes) ->
+%%    notification_store:install(Nodes), %% FIXME:  move to supervisor?
+    notification_store:start(),
     {ok, #state{}}.
 
 handle_call(num_pokes, _From, State = #state{ num_pokes = PokeCount }) ->
@@ -35,6 +38,14 @@ handle_call({poke, N}, _From, State) ->
     NewState     = State#state{num_pokes = NewPokeCount},
     Reply        = {ok, NewPokeCount},
     {reply, Reply, NewState}.
+
+handle_cast({ notification, Notification }, State) when is_binary(Notification) ->
+    try jsx:decode(Notification) of
+        Term -> notification_store:add(42, Term) %% FIXME: proper key
+    catch
+        error:_ -> ok %% Log it?
+    end,
+    { noreply, State };
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
