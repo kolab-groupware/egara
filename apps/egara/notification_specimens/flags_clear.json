@@ -1,0 +1,16 @@
+{
+    "event": "FlagsClear",
+    "flagNames": "\Seen",
+    "messages": 3,
+    "modseq": 47,
+    "pid": 489,
+    "service": "imap",
+    "timestamp": "2014-10-20T13:03:31.348+02:00",
+    "uidnext": 7,
+    "uidset": "4",
+    "uri": "imap://john.doe@example.org@kolab.example.org/INBOX;UIDVALIDITY=1411487701",
+    "user": "john.doe@example.org",
+    "vnd.cmu.midset": [ "<e0ffe5d5a1569a35c1b62791390a48d5@example.org>" ],
+    "vnd.cmu.sessionId": "kolab.example.org-489-1413803011-1",
+    "vnd.cmu.unseenMessages": 1
+}

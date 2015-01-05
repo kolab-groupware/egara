@@ -1,0 +1,15 @@
+{
+    "event": "MessageRead",
+    "messages": 3,
+    "modseq": 64,
+    "pid": 802,
+    "service": "imap",
+    "timestamp": "2014-10-20T13:04:09.077+02:00",
+    "uidnext": 7,
+    "uidset": "4",
+    "uri": "imap://john.doe@example.org@kolab.example.org/INBOX;UIDVALIDITY=1411487701",
+    "user": "john.doe@example.org",
+    "vnd.cmu.midset": [ "<e0ffe5d5a1569a35c1b62791390a48d5@example.org>" ],
+    "vnd.cmu.sessionId": "kolab.example.org-802-1413803049-1",
+    "vnd.cmu.unseenMessages": 0
+}

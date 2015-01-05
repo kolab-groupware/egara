@@ -1,0 +1,1 @@
+{ 'event': 'MailboxCreate', 'user': 'john.doe@example.org', 'uri': 'imap://john.doe@example.org@kolab.example.org/Calendar;UIDVALIDITY=12345' }

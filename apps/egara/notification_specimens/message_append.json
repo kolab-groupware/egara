@@ -1,0 +1,37 @@
+{
+    "event": "MessageAppend",
+    "flagNames": "\seen",
+    "messageSize": 555,
+    "messages": 6,
+    "modseq": 12,
+    "pid": 2222,
+    "service": "imap",
+    "timestamp": "2014-10-20T13:33:27.062+02:00",
+    "uidnext": 9,
+    "uidset": "8",
+    "uri": "imap://john.doe@example.org@kolab.example.org/Sent;UIDVALIDITY=1411487701/;UID=8",
+    "user": "john.doe@example.org",
+    "vnd.cmu.envelope": "(\"Mon, 20 Oct 2014 13:33:26 +0200\" \"MessageNew event test\" ((\"=?UTF-8?Q?Br=C3=BCederli=2C_Thomas?=\" NIL \"john.doe\" \"example.org\")) ((\"=?UTF-8?Q?Br=C3=BCederli=2C_Thomas?=\" NIL \"john.doe\" \"example.org\")) ((\"=?UTF-8?Q?Br=C3=BCederli=2C_Thomas?=\" NIL \"john.doe\" \"example.org\")) ((\"Doe, John\" NIL \"john.doe\" \"example.org\")) NIL NIL NIL \"<20f46a82b8584c1518fbeac7bad5f05b@example.org>\")",
+    "vnd.cmu.midset": [ "<20f46a82b8584c1518fbeac7bad5f05b@example.org>" ],
+    "vnd.cmu.sessionId": "kolab.example.org-2222-1413804806-1",
+    "vnd.cmu.unseenMessages": 0,
+    "folder_id": "76b8cd8f85bb435d17fe28d576db64a7",
+    "folder_uniqueid": "f356a1a9-f897-454f-9ada-5646fe4c4117",
+    "messageHeaders": {
+        "8": {
+            "Content-Transfer-Encoding": "7bit",
+            "Content-Type": "text/plain",
+            "Date": "2014-10-20T11:31:11Z",
+            "From": [ "Br\u00fcederli, Thomas <john.doe@example.org>" ],
+            "MIME-Version": "1.0",
+            "Message-ID": "<20f46a82b8584c1518fbeac7bad5f05b@example.org>",
+            "Subject": "MessageNew event test",
+            "To": [ "Doe, John <john.doe@example.org>" ],
+            "User-Agent": "Kolab 3.1/Roundcube 1.1-git",
+            "X-Sender": "john.doe@example.org"
+        }
+    },
+    "messageContent": {
+        "8": "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=US-ASCII;\r\n format=flowed\r\nContent-Transfer-Encoding: 7bit\r\nDate: Mon, 20 Oct 2014 13:31:11 +0200\r\nFrom: =?UTF-8?Q?Br=C3=BCederli=2C_Thomas?= <john.doe@example.org>\r\nTo: \"Doe, John\" <john.doe@example.org>\r\nSubject: MessageNew event test\r\nMessage-ID: <44ef83beb911cb9cd82e8dc7a29467a9@example.org>\r\nX-Sender: john.doe@example.org\r\nUser-Agent: Kolab 3.1/Roundcube 1.1-git\r\n\r\nThis message should trigger the MessageNew event for john.doe...\r\n...and MessageAppend to /Sent for the sender."
+    }
+}
