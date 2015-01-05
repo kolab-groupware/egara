@@ -1,6 +1,7 @@
 -module(egara_notifications_receiver).
 
 -behaviour(gen_server).
+-include_lib("kernel/include/file.hrl").
 
 %% API
 -export([ start_link/0
@@ -26,7 +27,44 @@ num_pokes()     -> gen_server:call(?MODULE, num_pokes).
 
 %% gen_server callbacks
 init([]) ->
-    {ok, #state{}}.
+    Options = [{ active, true }, binary],
+
+    %% get the path to the listen socket, either from the app config
+    %% or here
+    case application:get_env(notification_socket_path) of
+        undefined -> ListenPath = "/tmp/egara-notify";
+        Value -> ListenPath = Value
+    end,
+
+    %% see if the file exists, and if it does, remove it if it is a socket
+    %% allows to start the application multiple times, which is a good thing
+    case file:read_file_info(ListenPath) of
+        { ok, #file_info{ type = other } } -> ok = file:delete(ListenPath); %% TODO: handle errror with a report
+        { ok, _ } -> notok; %% do not remove a non-socket file. TODO: handle errror with a report, clean exit
+        {error, _} -> ok
+    end,
+
+    { ok, Listen } = afunix:listen(ListenPath, Options),
+    spawn(fun() -> acceptNotifiers(Listen) end),
+    { ok, #state{} }.
+
+acceptNotifiers(Listen) ->
+    { ok, Socket } = gen_tcp:accept(Listen),
+    spawn(fun() -> acceptNotifiers(Listen) end),
+    handle(Socket).
+
+handle(Socket) ->
+    inet:setopts(Socket, [{ active, once }, binary ]),
+    receive
+        { _, Socket, { socket_closed, normal } } ->
+            ok;   %% socket closed on connecting side
+        { _, Socket, { socket_closed, Error } } ->
+            lager:warning("Lost notification connection due to %p", Error),
+            ok; %% error! not so hot...
+        { _, Socket, Msg } ->
+            gen_tcp:send(Socket, Msg),
+            handle(Socket)
+    end.
 
 handle_call(num_pokes, _From, State = #state{ num_pokes = PokeCount }) ->
     {reply, PokeCount, State};
