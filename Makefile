@@ -13,4 +13,4 @@ app: deps
 	ENABLE_STATIC=no rebar compile
 
 run:
-	erl -pa apps/*/ebin deps/*/ebin -s bonnie
+	erl -pa apps/*/ebin deps/*/ebin -s egara

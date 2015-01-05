@@ -1,4 +1,4 @@
--module(notification_store).
+-module(egara_notification_store).
 -export([ install/1, start/0,
           notification/1, next_unnasigned/0,
           add/2, add/3, remove/1,

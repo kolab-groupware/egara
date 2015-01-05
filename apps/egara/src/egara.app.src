@@ -1,17 +1,19 @@
-{application, bonnie,
+{application, egara,
  [
   {description, "Kolab event and groupware data archival, e-discovery and data loss prevention system."},
-  {vsn, "1"},
+  {vsn, "0.1"},
   {registered, []},
   {applications, [
                   kernel,
                   stdlib,
-                  jsx,
-                  riakc,
-                  poolboy,
                   jobs,
-                  lager
+                  jsx,
+                  lager,
+                  afunix,
+                  mnesia,
+                  poolboy,
+                  riakc
                  ]},
-  {mod, { bonnie, []}},
+  {mod, { egara, []}},
   {env, []}
  ]}.

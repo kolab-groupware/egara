@@ -1,4 +1,4 @@
--module(bonnie_sup).
+-module(egara_sup).
 
 -behaviour(supervisor).
 
@@ -23,6 +23,6 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    Children = [ ?CHILD(bonnie_server, worker) ],
+    Children = [ ?CHILD(egara_notifications_receiver, worker) ],
     {ok, { {one_for_one, 5, 10}, Children} }.
 

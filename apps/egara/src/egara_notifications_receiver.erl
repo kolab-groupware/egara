@@ -1,4 +1,4 @@
--module(bonnie_server).
+-module(egara_notifications_receiver).
 
 -behaviour(gen_server).
 
@@ -39,7 +39,7 @@ handle_call({poke, N}, _From, State) ->
 
 handle_cast({ notification, Notification }, State) when is_binary(Notification) ->
     try jsx:decode(Notification) of
-        Term -> notification_store:add(42, Term) %% FIXME: proper key
+        Term -> egara_notification_store:add(42, Term) %% FIXME: proper key
     catch
         error:_ -> ok %% Log it?
     end,

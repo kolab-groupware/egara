@@ -1,25 +1,22 @@
--module(bonnie).
+-module(egara).
 
 -behaviour(application).
 
 %% Application callbacks
 -export([start/0, start/2, stop/1]).
 
-start() -> application:start(bonnie).
+start() -> application:start(egara).
 
 %% ===================================================================
 %% Application callbacks
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    %%TODO:
-    %%  - set the mnesia storage path
-    %%  - install the mnesia schema
-    error_logger:info_msg("Starting Bonnie ... ~n"),
+    error_logger:info_msg("Starting Egara ... ~n"),
     application:set_env(mnesia, dir, "db"),
-    notification_store:install([node() | nodes()]),
-    notification_store:start(),
-    bonnie_sup:start_link().
+    egara_notification_store:install([node() | nodes()]),
+    egara_notification_store:start(),
+    egara_sup:start_link().
 
 stop(_State) ->
     ok.
