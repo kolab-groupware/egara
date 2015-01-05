@@ -1,0 +1,28 @@
+{
+    "event": "MessageTrash",
+    "messages": 2,
+    "modseq": 104,
+    "pid": 1248,
+    "service": "imap",
+    "timestamp": "2014-10-20T13:10:59.546+02:00",
+    "uidnext": 38,
+    "uidset": "36",
+    "uri": "imap://john.doe@example.org@kolab.example.org/Calendar;UIDVALIDITY=1411487702",
+    "user": "john.doe@example.org",
+    "vnd.cmu.midset": [ "NIL" ],
+    "vnd.cmu.sessionId": "kolab.example.org-1248-1413803459-1",
+    "vnd.cmu.unseenMessages": 2,
+    "messageHeaders": {
+        "36": {
+            "Content-Type": "multipart/mixed",
+            "Date": "2014-10-20T11:23:40Z",
+            "From": [ " <thomas.bruederli@example.org>" ],
+            "MIME-Version": "1.0",
+            "Subject": "253E800C973E9FB99D174669001DB19B-FCBB6C4091F28CA0",
+            "To": [ " <thomas.bruederli@example.org>" ],
+            "User-Agent": "Kolab 3.1/Roundcube 1.1-git",
+            "X-Kolab-Mime-Version": "3.0",
+            "X-Kolab-Type": "application/x-vnd.kolab.event"
+        }
+    }
+}

@@ -1,0 +1,1 @@
+{ 'event': 'Logout', 'user': 'john.doe@example.org', 'vnd.cmu.sessionId': 'kolab-sess-test-12345', 'clientIP': '::1' }

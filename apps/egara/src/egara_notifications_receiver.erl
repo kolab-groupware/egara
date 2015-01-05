@@ -1,6 +1,7 @@
 -module(egara_notifications_receiver).
 
 -behaviour(gen_server).
+-include_lib("kernel/include/file.hrl").
 
 %% API
 -export([ start_link/0
@@ -14,6 +15,11 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -record(state, {num_pokes = 0}).
+-define(PF_LOCAL, 1).
+-define(SOCK_DGRAM, 2).
+-define(UNIX_PATH_MAX, 108).
+-define(MAX_SLEEP_MS, 1000).
+-define(MIN_SLEEP_MS, 1).
 
 %% API
 
@@ -26,7 +32,45 @@ num_pokes()     -> gen_server:call(?MODULE, num_pokes).
 
 %% gen_server callbacks
 init([]) ->
-    {ok, #state{}}.
+    %% get the path to the listen socket, either from the app config
+    %% or here
+    case application:get_env(notification_socket_path) of
+        Value when is_binary(Value) -> SocketPath = Value;
+        _ -> SocketPath = <<"/tmp/egara-notify">>
+    end,
+
+    %% see if the file exists, and if it does, remove it if it is a socket
+    %% allows to start the application multiple times, which is a good thing
+    case file:read_file_info(SocketPath) of
+        { ok, #file_info{ type = other } } -> ok = file:delete(SocketPath); %% TODO: handle errror with a report
+        { ok, _ } -> notok; %% do not remove a non-socket file. TODO: handle errror with a report, clean exit
+        {error, _} -> ok
+    end,
+
+    { ok, Socket } = procket:socket(?PF_LOCAL, ?SOCK_DGRAM, 0),
+    Sun = <<?PF_LOCAL:16/native, % sun_family
+            SocketPath/binary,   % address
+            0:((?UNIX_PATH_MAX-byte_size(SocketPath))*8) %% zero out the rest
+          >>,
+
+    case procket:bind(Socket, Sun) of
+        ok -> spawn(fun() -> recvNotification(Socket, ?MIN_SLEEP_MS) end);
+        { error, PosixError } -> lager:error("Could not bind to notification socket; error is: ~p", [PosixError])
+    end,
+    { ok, #state{} }.
+
+recvNotification(Socket, SleepMs) ->
+    case procket:recvfrom(Socket, 16#FFFF) of
+        { error, eagain } ->
+            NewSleepMs = min(SleepMs * 2, ?MAX_SLEEP_MS),
+            timer:sleep(NewSleepMs),
+            recvNotification(Socket, NewSleepMs);
+        { ok, Buf } ->
+            %%lager:info("~s", [binary_to_list(Buf)]),
+            Components = binary:split(Buf, <<"\0">>, [global]),
+            lager:info("~p", [Components]),
+            recvNotification(Socket, ?MIN_SLEEP_MS)
+    end.
 
 handle_call(num_pokes, _From, State = #state{ num_pokes = PokeCount }) ->
     {reply, PokeCount, State};
