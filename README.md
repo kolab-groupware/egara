@@ -6,8 +6,17 @@ It is designed to be used with the Kolab Groupware server and is written
 
 == Building
 
-Simply run `make`. This should get you all the dependencies required and build
+On the first build run `make deps-up` then apply the patches in the deps_diffs
+directory. (Mostly this adjusts the dependencies in these applications to be
+in line with each other. Eventually this will be either automated or fixed
+in upstream repositories; probably the latter but for now this is convenient
+as dependencies are still shifting at this stage of development.)
+
+Next, simply run `make`. This should get you all the dependencies required and build
 the application which can be run from in the base directory with `make run`.
+
+After the first build, `make egara` is faster and should be all that is needed
+unless the dependencies need updating.
 
 == Usage
 
