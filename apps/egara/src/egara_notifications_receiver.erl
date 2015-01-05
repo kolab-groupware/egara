@@ -76,6 +76,17 @@ init([]) ->
     end,
     { ok, #state{} }.
 
+%% silly little thing that grabs the second-to-last item; very specific to what cyrus throws at us
+%% TODO: could be made more efficient by just going N items in since we "know" the format?
+cherryPickNotification([], LastTerm, _) ->
+    LastTerm;
+cherryPickNotification(Terms, _, ThisTerm) ->
+    [H|T] = Terms,
+    cherryPickNotification(T, ThisTerm, H).
+cherryPickNotification(Terms) ->
+    [H|T] = Terms,
+    cherryPickNotification(T, null, H).
+
 recvNotification(Socket, SleepMs) ->
     case procket:recvfrom(Socket, 16#FFFF) of
         { error, eagain } ->
@@ -85,7 +96,9 @@ recvNotification(Socket, SleepMs) ->
         { ok, Buf } ->
             %%lager:info("~s", [binary_to_list(Buf)]),
             Components = binary:split(Buf, <<"\0">>, [global]),
-            lager:info("~p", [Components]),
+            %%lager:info("~p", [Components]),
+            Json = cherryPickNotification(Components),
+            gen_server:cast(?MODULE, { notification, Json }),
             recvNotification(Socket, ?MIN_SLEEP_MS)
     end.
 
