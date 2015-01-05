@@ -15,6 +15,9 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -record(state, {num_pokes = 0}).
+-define(PF_LOCAL, 1).
+-define(SOCK_DGRAM, 2).
+-define(UNIX_PATH_MAX, 108).
 
 %% API
 
@@ -27,43 +30,44 @@ num_pokes()     -> gen_server:call(?MODULE, num_pokes).
 
 %% gen_server callbacks
 init([]) ->
-    Options = [{ active, true }, binary],
-
     %% get the path to the listen socket, either from the app config
     %% or here
     case application:get_env(notification_socket_path) of
-        undefined -> ListenPath = "/tmp/egara-notify";
-        Value -> ListenPath = Value
+        Value when is_binary(Value) -> SocketPath = Value;
+        _ -> SocketPath = <<"/tmp/egara-notify">>
     end,
 
     %% see if the file exists, and if it does, remove it if it is a socket
     %% allows to start the application multiple times, which is a good thing
-    case file:read_file_info(ListenPath) of
-        { ok, #file_info{ type = other } } -> ok = file:delete(ListenPath); %% TODO: handle errror with a report
+    case file:read_file_info(SocketPath) of
+        { ok, #file_info{ type = other } } -> ok = file:delete(SocketPath); %% TODO: handle errror with a report
         { ok, _ } -> notok; %% do not remove a non-socket file. TODO: handle errror with a report, clean exit
         {error, _} -> ok
     end,
 
-    { ok, Listen } = afunix:listen(ListenPath, Options),
-    spawn(fun() -> acceptNotifiers(Listen) end),
+    { ok, Socket } = procket:socket(?PF_LOCAL, ?SOCK_DGRAM, 0),
+    Sun = <<?PF_LOCAL:16/native, % sun_family
+            SocketPath/binary,   % address
+            0:((?UNIX_PATH_MAX-byte_size(SocketPath))*8) %% zero out the rest
+          >>,
+
+    case procket:bind(Socket, Sun) of
+        ok -> spawn(fun() -> recvNotification(Socket) end);
+        { error, PosixError } -> lager:error("Could not bind to notification socket; error is: ~p", [PosixError])
+    end,
     { ok, #state{} }.
 
-acceptNotifiers(Listen) ->
-    { ok, Socket } = gen_tcp:accept(Listen, 5000),
-    spawn(fun() -> acceptNotifiers(Listen) end),
-    handle(Socket).
-
-handle(Socket) ->
-    inet:setopts(Socket, [{ active, once }, binary ]),
-    receive
-        { _, Socket, { socket_closed, normal } } ->
-            ok;   %% socket closed on connecting side
-        { _, Socket, { socket_closed, Error } } ->
-            lager:warning("Lost notification connection due to %p", Error),
-            ok; %% error! not so hot...
-        { _, Socket, Msg } ->
-            gen_tcp:send(Socket, Msg),
-            handle(Socket)
+recvNotification(Socket) ->
+    case procket:recvfrom(Socket, 16#FFFF) of
+        { error, eagain } ->
+            timer:sleep(100),
+            lager:info("EAGAIN!"),
+            recvNotification(Socket);
+        { ok, Buf } ->
+            %%lager:info("~s", [binary_to_list(Buf)]),
+            Components = binary:split(Buf, <<"\0">>, [global]),
+            lager:info("~p", [Components]),
+            recvNotification(Socket)
     end.
 
 handle_call(num_pokes, _From, State = #state{ num_pokes = PokeCount }) ->

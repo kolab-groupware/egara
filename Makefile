@@ -1,7 +1,7 @@
 REBAR = $(shell which rebar || echo ./rebar)
 ENABLE_STATIC = no
 
-all: app
+all: deps-up egara
 
 deps:
 	rebar get-deps
@@ -9,7 +9,7 @@ deps:
 deps-up: deps
 	rebar update-deps
 
-app: deps
+egara:
 	ENABLE_STATIC=no rebar compile
 
 run:

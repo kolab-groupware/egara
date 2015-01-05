@@ -10,7 +10,7 @@
                   jobs,
                   jsx,
                   lager,
-                  afunix,
+                  procket,
                   mnesia,
                   poolboy,
                   riakc
@@ -18,7 +18,7 @@
   {mod, { egara, []}},
   {env, [
       {egara, [
-%%        { notification_socket_path, undefined }
+%%        { notification_socket_path, <<"/tmp/egara-notify">>}
       ]},
       {lager, [
           {handlers, [
