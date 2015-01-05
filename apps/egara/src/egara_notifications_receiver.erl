@@ -49,7 +49,7 @@ init([]) ->
     { ok, #state{} }.
 
 acceptNotifiers(Listen) ->
-    { ok, Socket } = gen_tcp:accept(Listen),
+    { ok, Socket } = gen_tcp:accept(Listen, 5000),
     spawn(fun() -> acceptNotifiers(Listen) end),
     handle(Socket).
 
