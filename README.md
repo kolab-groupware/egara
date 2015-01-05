@@ -1,5 +1,5 @@
-Egara is an event driven groupware archival system for e-discovery and datai
-loss prevention.
+Egara is an event driven groupware archival system for e-discovery and data
+loss prevention. The name means "storehouse" in Sumerian.
 
 It is designed to be used with the Kolab Groupware server and is written
 (primarily) in Erlang.
