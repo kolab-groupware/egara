@@ -18,6 +18,8 @@
 -define(PF_LOCAL, 1).
 -define(SOCK_DGRAM, 2).
 -define(UNIX_PATH_MAX, 108).
+-define(MAX_SLEEP_MS, 1000).
+-define(MIN_SLEEP_MS, 1).
 
 %% API
 
@@ -52,22 +54,22 @@ init([]) ->
           >>,
 
     case procket:bind(Socket, Sun) of
-        ok -> spawn(fun() -> recvNotification(Socket) end);
+        ok -> spawn(fun() -> recvNotification(Socket, ?MIN_SLEEP_MS) end);
         { error, PosixError } -> lager:error("Could not bind to notification socket; error is: ~p", [PosixError])
     end,
     { ok, #state{} }.
 
-recvNotification(Socket) ->
+recvNotification(Socket, SleepMs) ->
     case procket:recvfrom(Socket, 16#FFFF) of
         { error, eagain } ->
-            timer:sleep(100),
-            lager:info("EAGAIN!"),
-            recvNotification(Socket);
+            NewSleepMs = min(SleepMs * 2, ?MAX_SLEEP_MS),
+            timer:sleep(NewSleepMs),
+            recvNotification(Socket, NewSleepMs);
         { ok, Buf } ->
             %%lager:info("~s", [binary_to_list(Buf)]),
             Components = binary:split(Buf, <<"\0">>, [global]),
             lager:info("~p", [Components]),
-            recvNotification(Socket)
+            recvNotification(Socket, ?MIN_SLEEP_MS)
     end.
 
 handle_call(num_pokes, _From, State = #state{ num_pokes = PokeCount }) ->
