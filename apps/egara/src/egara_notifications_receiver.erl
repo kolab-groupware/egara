@@ -23,15 +23,12 @@
 %% API
 -export([ start_link/0
         , notification_received/1
-        , poke/0
-        , poke/1
-        , num_pokes/0
         ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--record(state, {num_pokes = 0}).
+-record(state, { storage_id = 0 }).
 -define(PF_LOCAL, 1).
 -define(SOCK_DGRAM, 2).
 -define(UNIX_PATH_MAX, 108).
@@ -42,9 +39,6 @@
 
 start_link()    -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 notification_received(Notification) -> gen_server:cast(?MODULE, { notification, Notification }).
-poke()          -> poke(1).
-poke(N)         -> gen_server:call(?MODULE, {poke, N}).
-num_pokes()     -> gen_server:call(?MODULE, num_pokes).
 
 
 %% gen_server callbacks
@@ -74,7 +68,9 @@ init([]) ->
         ok -> spawn(fun() -> recvNotification(Socket, ?MIN_SLEEP_MS) end);
         { error, PosixError } -> lager:error("Could not bind to notification socket; error is: ~p", [PosixError])
     end,
-    { ok, #state{} }.
+
+    MaxKey = egara_notification_store:max_key(),
+    { ok, #state{ storage_id = MaxKey + 1 } }.
 
 %% silly little thing that grabs the second-to-last item; very specific to what cyrus throws at us
 %% TODO: could be made more efficient by just going N items in since we "know" the format?
@@ -102,22 +98,16 @@ recvNotification(Socket, SleepMs) ->
             recvNotification(Socket, ?MIN_SLEEP_MS)
     end.
 
-handle_call(num_pokes, _From, State = #state{ num_pokes = PokeCount }) ->
-    {reply, PokeCount, State};
-
-handle_call({poke, N}, _From, State) ->
-    NewPokeCount = State#state.num_pokes + N,
-    NewState     = State#state{num_pokes = NewPokeCount},
-    Reply        = {ok, NewPokeCount},
-    {reply, Reply, NewState}.
+handle_call(_, _From, State) ->
+    { reply, ok, State }.
 
 handle_cast({ notification, Notification }, State) when is_binary(Notification) ->
     try jsx:decode(Notification) of
-        Term -> egara_notification_store:add(42, Term) %% FIXME: proper key
+        Term -> egara_notification_store:add(State#state.storage_id, Term),
+                { noreply, State#state{ storage_id = State#state.storage_id + 1 } } %% if paralellized, this needs to be syncronized
     catch
-        error:_ -> ok %% Log it?
-    end,
-    { noreply, State };
+        error:_ -> { noreply, State }
+    end;
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -129,11 +119,11 @@ terminate(_Reason, _State) ->
     ok.
 
 %% Upgrade from 2
-code_change(_OldVsn, State, [from2to3]) ->
+code_change(_OldVsn, State, [from1To2]) ->
     error_logger:info_msg("CODE_CHANGE from 2~n"),
-    {state, NumPokes} = State, %% State here is the 'old' format, with 1 field
-    NewState = #state{num_pokes=NumPokes}, %% will assume default for num_prods
-    {ok, NewState}.
+    { state, StorageId } = State,
+    NewState = #state{ storage_id = StorageId  },
+    { ok, NewState }.
 
 %% Note downgrade code_change not implemented
     

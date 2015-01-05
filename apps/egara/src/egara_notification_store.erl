@@ -20,7 +20,8 @@
           notification/1, next_unnasigned/0,
           add/2, add/3, remove/1,
           assign/2, assign_next/1,
-          release/1, release/2, release_orphaned/0 ]).
+          release/1, release/2, release_orphaned/0,
+          max_key/0]).
 -include_lib("stdlib/include/qlc.hrl").
 -record(egara_incoming_notification, { id, claimed = 0, term }).
 
@@ -139,6 +140,15 @@ next_unnasigned() ->
                     [] -> #egara_incoming_notification{ id = 0 };
                     Record when is_list(Record) -> hd(Record);
                     _ -> #egara_incoming_notification{ id = 0 }
+                end
+        end,
+    mnesia:activity(transaction, F).
+
+max_key() ->
+    F = fun() ->
+                case mnesia:last(egara_incoming_notification) of
+                    '$end_of_table' -> 0;
+                    Key -> Key
                 end
         end,
     mnesia:activity(transaction, F).
