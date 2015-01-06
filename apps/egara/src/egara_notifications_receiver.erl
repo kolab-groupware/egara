@@ -32,7 +32,7 @@
 -define(PF_LOCAL, 1).
 -define(SOCK_DGRAM, 2).
 -define(UNIX_PATH_MAX, 108).
--define(MAX_SLEEP_MS, 1000).
+-define(MAX_SLEEP_MS, 500).
 -define(MIN_SLEEP_MS, 1).
 
 %% API
