@@ -43,6 +43,28 @@ notification_received(Notification) -> gen_server:cast(?MODULE, { notification, 
 
 %% gen_server callbacks
 init([]) ->
+    spawn(fun() -> recvNotifications() end),
+    MaxKey = egara_notification_store:max_key(),
+    { ok, #state{ storage_id = MaxKey + 1 } }.
+
+%% silly little thing that grabs the second-to-last item; very specific to what cyrus throws at us
+%% TODO: could be made more efficient by just going N items in since we "know" the format?
+cherryPickNotification([], LastTerm, _) ->
+    LastTerm;
+cherryPickNotification(Terms, _, ThisTerm) ->
+    [H|T] = Terms,
+    cherryPickNotification(T, ThisTerm, H).
+cherryPickNotification(Terms) ->
+    [H|T] = Terms,
+    cherryPickNotification(T, null, H).
+
+recvNotifications() ->
+    case application:get_env(imap_server) of
+        "cyrus" -> recvCyrusNotifications();
+        _ -> recvCyrusNotifications()
+    end.
+
+recvCyrusNotifications() ->
     %% get the path to the listen socket, either from the app config
     %% or here
     case application:get_env(notification_socket_path) of
@@ -65,37 +87,23 @@ init([]) ->
           >>,
 
     case procket:bind(Socket, Sun) of
-        ok -> spawn(fun() -> recvNotification(Socket, ?MIN_SLEEP_MS) end);
+        ok -> recvCyrusNotification(Socket, ?MAX_SLEEP_MS);
         { error, PosixError } -> lager:error("Could not bind to notification socket; error is: ~p", [PosixError])
-    end,
+    end.
 
-    MaxKey = egara_notification_store:max_key(),
-    { ok, #state{ storage_id = MaxKey + 1 } }.
-
-%% silly little thing that grabs the second-to-last item; very specific to what cyrus throws at us
-%% TODO: could be made more efficient by just going N items in since we "know" the format?
-cherryPickNotification([], LastTerm, _) ->
-    LastTerm;
-cherryPickNotification(Terms, _, ThisTerm) ->
-    [H|T] = Terms,
-    cherryPickNotification(T, ThisTerm, H).
-cherryPickNotification(Terms) ->
-    [H|T] = Terms,
-    cherryPickNotification(T, null, H).
-
-recvNotification(Socket, SleepMs) ->
+recvCyrusNotification(Socket, SleepMs) ->
     case procket:recvfrom(Socket, 16#FFFF) of
         { error, eagain } ->
             NewSleepMs = min(SleepMs * 2, ?MAX_SLEEP_MS),
             timer:sleep(NewSleepMs),
-            recvNotification(Socket, NewSleepMs);
+            recvCyrusNotification(Socket, NewSleepMs);
         { ok, Buf } ->
             %%lager:info("~s", [binary_to_list(Buf)]),
             Components = binary:split(Buf, <<"\0">>, [global]),
             %%lager:info("~p", [Components]),
             Json = cherryPickNotification(Components),
             gen_server:cast(?MODULE, { notification, Json }),
-            recvNotification(Socket, ?MIN_SLEEP_MS)
+            recvCyrusNotification(Socket, ?MIN_SLEEP_MS)
     end.
 
 handle_call(_, _From, State) ->
