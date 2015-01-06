@@ -17,15 +17,7 @@
                  ]},
   {mod, { egara, []}},
   {env, [
-      {egara, [
+          { imap_server, "cyrus" }
 %%        { notification_socket_path, <<"/tmp/egara-notify">>}
-      ]},
-      {lager, [
-          {handlers, [
-              {lager_console_backend, info},
-              {lager_file_backend, [{file, "error.log"}, {level, error}]},
-              {lager_file_backend, [{file, "console.log"}, {level, info}]}
-              ]}
-      ]}
-   ]}
+    ]}
  ]}.
