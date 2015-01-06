@@ -29,7 +29,7 @@ start() -> application:start(egara).
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    error_logger:info_msg("Starting Egara ... ~n"),
+    lager:info("Starting Egara ..."),
     application:set_env(mnesia, dir, "db"),
     egara_notification_store:install([node() | nodes()]),
     egara_notification_store:start(),
