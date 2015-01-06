@@ -20,6 +20,9 @@
       {egara, [
 %%        { notification_socket_path, <<"/tmp/egara-notify">>}
       ]},
+      {mnesia, [
+                { dir, "db" }
+               ]},
       {lager, [
           {handlers, [
               {lager_console_backend, info},

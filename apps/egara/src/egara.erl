@@ -30,9 +30,14 @@ start() -> application:start(egara).
 
 start(_StartType, _StartArgs) ->
     lager:info("Starting Egara ..."),
-    application:set_env(mnesia, dir, "db"),
+    lager:info("    Initializing the mnesia-based notification queue ..."),
     egara_notification_store:install([node() | nodes()]),
     egara_notification_store:start(),
+    lager:info("    Creating worker job queue ..."),
+%%    jobs:add_queue(notification_workers,
+%%                   [{regulators, [{rate, [ {modifiers,
+%%                                           [{cpu, 15, {max, 0}}]}]}]}]),
+    lager:info("    Starting the main supervisor ..."),
     egara_sup:start_link().
 
 stop(_State) ->
