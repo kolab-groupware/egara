@@ -148,7 +148,7 @@ do_next_unnasigned(RequestedN, C, N, [Key|T]) ->
         _ -> do_next_unnasigned(RequestedN, C, N - 1, T)
     end.
 
-process_next_unnasigned(N, C) when is_number(N), is_function(C) ->
+process_next_unnasigned(N, C) when is_number(N), is_function(C, 2) ->
     Pattern = #egara_incoming_notification{ _ = '_', claimed = 0 },
     F = fun() ->
                 case mnesia:match_object(Pattern) of
