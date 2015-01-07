@@ -17,7 +17,7 @@
 
 -module(egara_notification_store).
 -export([ install/1, start/0,
-          notification/1, next_unnasigned/0,
+          notification/1, next_unnasigned/0, process_next_unnasigned/2,
           add/2, add/3, remove/1,
           assign/2, assign_next/1,
           release/1, release/2, release_orphaned/0,
@@ -128,8 +128,33 @@ assign_next(PID) when is_pid(PID) ->
     F = fun() ->
                 case mnesia:match_object(Pattern) of
                     [] -> false;
-                    Unnasigned when is_list(Unnasigned) -> orphan_assigner(Unnasigned, PID);
+                    Unnasigned when is_list(Unnasigned) -> orphan_assigner(hd(Unnasigned), PID);
                     _ -> false
+                end
+        end,
+    mnesia:activity(transaction, F).
+
+%% RequestedN -> the max number of notifications to process
+%% C -> continuation to call with each notification
+%% N -> countdown to 0
+%% [] -> List of matching objects
+do_next_unnasigned(RequestedN, _, 0, _) ->
+    RequestedN;
+do_next_unnasigned(RequestedN, _, N, []) ->
+    RequestedN - N;
+do_next_unnasigned(RequestedN, C, N, [Key|T]) ->
+    case C(Key) of
+        error -> RequestedN - N;
+        _ -> do_next_unnasigned(RequestedN, C, N - 1, T)
+    end.
+
+process_next_unnasigned(N, C) when is_number(N), is_function(C) ->
+    Pattern = #egara_incoming_notification{ _ = '_', claimed = 0 },
+    F = fun() ->
+                case mnesia:match_object(Pattern) of
+                    [] -> 0;
+                    Unnasigned when is_list(Unnasigned) -> do_next_unnasigned(N, C, N, Unnasigned);
+                    _ -> 0
                 end
         end,
     mnesia:activity(transaction, F).
