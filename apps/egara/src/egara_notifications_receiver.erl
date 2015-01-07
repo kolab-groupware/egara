@@ -49,6 +49,7 @@ start_notification_reception() ->
 init([]) ->
     MaxKey = egara_notification_store:max_key(),
     Rv = start_notification_reception(),
+    %%TODO: on Rv = error, do something appropriate
     lager:info("Notification reception started ... ~p", [Rv]),
     { ok, #state{ storage_id = MaxKey + 1 } }.
 

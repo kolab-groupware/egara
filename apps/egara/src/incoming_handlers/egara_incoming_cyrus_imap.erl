@@ -58,7 +58,9 @@ bindSocket(SocketPath) ->
           >>,
 
     case procket:bind(Socket, Sun) of
-        ok -> spawn(fun() -> recvCyrusNotification(Socket, ?MAX_SLEEP_MS) end), ok;
+        ok -> spawn(fun() -> recvCyrusNotification(Socket, ?MAX_SLEEP_MS) end),
+              %% TODO put above process under supervision; it needs to always be restarted if it crashes
+              ok;
         { error, PosixError } -> lager:error("Could not bind to notification socket; error is: ~p", [PosixError]), error
     end.
 
