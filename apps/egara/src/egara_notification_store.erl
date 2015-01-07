@@ -27,6 +27,7 @@
 
 install(Nodes) ->
     rpc:multicall(Nodes, application, stop, [mnesia]),
+    %% TODO: tune mnesia for large batches of writes; see -> http://streamhacker.com/2008/12/10/how-to-eliminate-mnesia-overload-events/
     mnesia:create_schema(Nodes),
     rpc:multicall(Nodes, application, start, [mnesia]),
     try mnesia:create_table(egara_incoming_notification,
