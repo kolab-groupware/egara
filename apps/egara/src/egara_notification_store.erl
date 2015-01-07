@@ -30,6 +30,7 @@ install(Nodes) ->
     %% TODO: tune mnesia for large batches of writes; see -> http://streamhacker.com/2008/12/10/how-to-eliminate-mnesia-overload-events/
     mnesia:create_schema(Nodes),
     rpc:multicall(Nodes, application, start, [mnesia]),
+    %% create index for claimed
     try mnesia:create_table(egara_incoming_notification,
                             [{ attributes, record_info(fields, egara_incoming_notification) },
                              { type, ordered_set },
@@ -78,6 +79,7 @@ assign(#egara_incoming_notification{ id = Key }, PID) ->
     assign(Key, PID);
 
 assign(Key, PID) ->
+    %%TODO: make this more efficient by using qlc; currently scans whole table!
     Pattern = #egara_incoming_notification{ _ = '_', id = Key, claimed = 0 },
     F = fun() ->
                 %% check if claimed is set and if so if the process is still running
@@ -89,6 +91,7 @@ assign(Key, PID) ->
     mnesia:activity(transaction, F).
 
 release(Key, PID) ->
+    %%TODO: make this more efficient by using qlc; currently scans whole table!
     Pattern = #egara_incoming_notification{ _ = '_', claimed = PID, id = Key },
     F = fun() ->
                 %% check if claimed is set and if so if the process is still running
@@ -116,23 +119,8 @@ release_orphaned() ->
         end,
     mnesia:activity(transaction, F).
 
-orphan_assigner([Record | Tail], PID) ->
-    Result = assign(Record#egara_incoming_notification.id, PID),
-    if Result =:= true -> true;
-       true -> orphan_assigner(Tail, PID)
-    end;
-orphan_assigner([], _) -> false.
-
 assign_next(PID) when is_pid(PID) ->
-    Pattern = #egara_incoming_notification{ _ = '_', claimed = 0 },
-    F = fun() ->
-                case mnesia:match_object(Pattern) of
-                    [] -> false;
-                    Unnasigned when is_list(Unnasigned) -> orphan_assigner(hd(Unnasigned), PID);
-                    _ -> false
-                end
-        end,
-    mnesia:activity(transaction, F).
+    process_next_unnasigned(1, fun(Key, _) -> assign(Key, PID) end).
 
 %% RequestedN -> the max number of notifications to process
 %% C -> continuation to call with each notification
@@ -148,18 +136,23 @@ do_next_unnasigned(RequestedN, C, N, [Key|T]) ->
         _ -> do_next_unnasigned(RequestedN, C, N - 1, T)
     end.
 
-process_next_unnasigned(N, C) when is_number(N), is_function(C, 2) ->
-    Pattern = #egara_incoming_notification{ _ = '_', claimed = 0 },
+tail_len(L) -> tail_len(L,0).
+tail_len([], Acc) -> Acc;
+tail_len([_|T], Acc) -> tail_len(T,Acc+1).
+
+process_next_unnasigned(NumRequested, C) when is_number(NumRequested), is_function(C, 2) ->
     F = fun() ->
-                case mnesia:match_object(Pattern) of
-                    [] -> 0;
-                    Unnasigned when is_list(Unnasigned) -> do_next_unnasigned(N, C, N, Unnasigned);
-                    _ -> 0
-                end
+                QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
+                             Rec#egara_incoming_notification.claimed =:= 0]),
+                QC = qlc:cursor(QH),
+                Answers = qlc:next_answers(QC, 10),
+                NumProcessed = do_next_unnasigned(NumRequested, C, NumRequested, Answers)
+                %%, lager:info("Processed ~p unnasigned notifications", [NumProcessed])
         end,
     mnesia:activity(transaction, F).
 
 next_unnasigned() ->
+    %%TODO: make this more efficient by using qlc; currently scans whole table!
     Pattern = #egara_incoming_notification{ _ = '_', claimed = 0 },
     F = fun() ->
                 case mnesia:match_object(Pattern) of
