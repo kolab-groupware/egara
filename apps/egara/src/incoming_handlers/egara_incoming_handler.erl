@@ -1,0 +1,2 @@
+-module(egara_incoming_handler).
+-callback start_reception() -> ok | error.

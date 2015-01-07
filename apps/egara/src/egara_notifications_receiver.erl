@@ -18,7 +18,6 @@
 -module(egara_notifications_receiver).
 
 -behaviour(gen_server).
--include_lib("kernel/include/file.hrl").
 
 %% API
 -export([ start_link/0
@@ -36,75 +35,22 @@
 -define(MIN_SLEEP_MS, 1).
 
 %% API
+start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+notification_received(NotificationJson) -> gen_server:cast(?MODULE, { notification, NotificationJson }).
 
-start_link()    -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-notification_received(Notification) -> gen_server:cast(?MODULE, { notification, Notification }).
-
+%% private/internal functions
+start_notification_reception() ->
+    case application:get_env(imap_server) of
+        "cyrus" -> egara_incoming_cyrus_imap:start_reception();
+        _ -> egara_incoming_cyrus_imap:start_reception() %% default
+    end.
 
 %% gen_server callbacks
 init([]) ->
-    spawn(fun() -> recvNotifications() end),
     MaxKey = egara_notification_store:max_key(),
+    Rv = start_notification_reception(),
+    lager:info("Notification reception started ... ~p", [Rv]),
     { ok, #state{ storage_id = MaxKey + 1 } }.
-
-%% silly little thing that grabs the second-to-last item; very specific to what cyrus throws at us
-%% TODO: could be made more efficient by just going N items in since we "know" the format?
-cherryPickNotification([], LastTerm, _) ->
-    LastTerm;
-cherryPickNotification(Terms, _, ThisTerm) ->
-    [H|T] = Terms,
-    cherryPickNotification(T, ThisTerm, H).
-cherryPickNotification(Terms) ->
-    [H|T] = Terms,
-    cherryPickNotification(T, null, H).
-
-recvNotifications() ->
-    case application:get_env(imap_server) of
-        "cyrus" -> recvCyrusNotifications();
-        _ -> recvCyrusNotifications()
-    end.
-
-recvCyrusNotifications() ->
-    %% get the path to the listen socket, either from the app config
-    %% or here
-    case application:get_env(notification_socket_path) of
-        Value when is_binary(Value) -> SocketPath = Value;
-        _ -> SocketPath = <<"/tmp/egara-notify">>
-    end,
-
-    %% see if the file exists, and if it does, remove it if it is a socket
-    %% allows to start the application multiple times, which is a good thing
-    case file:read_file_info(SocketPath) of
-        { ok, #file_info{ type = other } } -> ok = file:delete(SocketPath); %% TODO: handle errror with a report
-        { ok, _ } -> notok; %% do not remove a non-socket file. TODO: handle errror with a report, clean exit
-        {error, _} -> ok
-    end,
-
-    { ok, Socket } = procket:socket(?PF_LOCAL, ?SOCK_DGRAM, 0),
-    Sun = <<?PF_LOCAL:16/native, % sun_family
-            SocketPath/binary,   % address
-            0:((?UNIX_PATH_MAX-byte_size(SocketPath))*8) %% zero out the rest
-          >>,
-
-    case procket:bind(Socket, Sun) of
-        ok -> recvCyrusNotification(Socket, ?MAX_SLEEP_MS);
-        { error, PosixError } -> lager:error("Could not bind to notification socket; error is: ~p", [PosixError])
-    end.
-
-recvCyrusNotification(Socket, SleepMs) ->
-    case procket:recvfrom(Socket, 16#FFFF) of
-        { error, eagain } ->
-            NewSleepMs = min(SleepMs * 2, ?MAX_SLEEP_MS),
-            timer:sleep(NewSleepMs),
-            recvCyrusNotification(Socket, NewSleepMs);
-        { ok, Buf } ->
-            %%lager:info("~s", [binary_to_list(Buf)]),
-            Components = binary:split(Buf, <<"\0">>, [global]),
-            %%lager:info("~p", [Components]),
-            Json = cherryPickNotification(Components),
-            gen_server:cast(?MODULE, { notification, Json }),
-            recvCyrusNotification(Socket, ?MIN_SLEEP_MS)
-    end.
 
 handle_call(_, _From, State) ->
     { reply, ok, State }.
