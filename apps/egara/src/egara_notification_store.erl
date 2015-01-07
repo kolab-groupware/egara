@@ -143,7 +143,7 @@ do_next_unnasigned(RequestedN, _, 0, _) ->
 do_next_unnasigned(RequestedN, _, N, []) ->
     RequestedN - N;
 do_next_unnasigned(RequestedN, C, N, [Key|T]) ->
-    case C(Key) of
+    case C(Key#egara_incoming_notification.id, Key#egara_incoming_notification.term) of
         error -> RequestedN - N;
         _ -> do_next_unnasigned(RequestedN, C, N - 1, T)
     end.
