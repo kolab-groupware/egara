@@ -40,6 +40,7 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    Children = [ ?CHILD(egara_notifications_receiver, worker) ],
+    Children = [ ?CHILD(egara_notifications_receiver, worker),
+                 ?CHILD(egara_notifications_processor, worker) ],
     {ok, { {one_for_one, 5, 10}, Children} }.
 
