@@ -36,12 +36,21 @@ notifications_received() -> gen_server:cast(?MODULE, { notifications_received })
 process_backlog() -> gen_server:cast(?MODULE, { process_backlog }).
 
 %% private/internal functions
+process_backlog_if_notifications(0) ->
+    ok;
+process_backlog_if_notifications(N) when is_number(N) ->
+    process_backlog();
+process_backlog_if_notifications(_) ->
+    ok.
+clear_orphans() ->
+    process_backlog_if_notifications(egara_notification_store:release_orphaned()).
+
 start_work_after_assigned() ->
     receive
         { Key, _Term } ->
             %%TODO actual work!
             egara_notification_store:remove(Key),
-            lager:info("Finished ~p", [Key]),
+            %%lager:info("Finished ~p", [Key]),
             ok;
         terminate ->
             ok;
@@ -70,7 +79,11 @@ handle_cast({ notifications_received}, State) ->
     { noreply, State };
 
 handle_cast({ process_backlog}, State) ->
-    egara_notification_store:process_next_unnasigned(50, fun egara_notifications_processor:process_notification/2),
+    lager:info("Handling backlog...."),
+    case egara_notification_store:process_next_unnasigned(50, fun egara_notifications_processor:process_notification/2) of
+        NumProcessed when is_number(NumProcessed), NumProcessed > 0 -> process_backlog();
+        _ -> clear_orphans(), ok
+    end,
     { noreply, State };
 
 handle_cast(_Msg, State) ->
