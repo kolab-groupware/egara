@@ -27,13 +27,27 @@
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--record(state, { storage_id = 0 }).
+-record(state, { storage_id = 0, processor_notifier_pid }).
 
 %% API
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 notification_received(NotificationJson) -> gen_server:cast(?MODULE, { notification, NotificationJson }).
 
 %% private/internal functions
+inform_notifications_processor(N) when is_number(N), N > 500 ->
+    egara_notifications_processor:process_backlog(),
+    0;
+inform_notifications_processor(N) ->
+    N.
+
+notifications_processor_notifier(Total) when is_number(Total) ->
+    receive
+        Pending when is_number(Pending) -> notifications_processor_notifier(inform_notifications_processor(Total + Pending))
+    after 1000 ->
+        inform_notifications_processor(Total),
+        notifications_processor_notifier(0)
+    end.
+
 start_notification_reception() ->
     case application:get_env(imap_server) of
         "cyrus" -> egara_incoming_cyrus_imap:start_reception();
@@ -46,7 +60,7 @@ init([]) ->
     Rv = start_notification_reception(),
     %%TODO: on Rv = error, do something appropriate
     lager:info("Notification reception started ... ~p", [Rv]),
-    { ok, #state{ storage_id = MaxKey + 1 } }.
+    { ok, #state{ storage_id = MaxKey + 1, processor_notifier_pid = spawn(fun() -> notifications_processor_notifier(0) end) } }.
 
 handle_call(_, _From, State) ->
     { reply, ok, State }.
@@ -54,6 +68,7 @@ handle_call(_, _From, State) ->
 handle_cast({ notification, Notification }, State) when is_binary(Notification) ->
     try jsx:decode(Notification) of
         Term -> egara_notification_store:add(State#state.storage_id, Term),
+                State#state.processor_notifier_pid ! 1,
                 { noreply, State#state{ storage_id = State#state.storage_id + 1 } } %% if paralellized, this needs to be syncronized
     catch
         error:_ -> { noreply, State }
