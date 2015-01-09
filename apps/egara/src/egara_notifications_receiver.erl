@@ -40,6 +40,7 @@ inform_notifications_processor(N) when is_number(N), N > 500 ->
 inform_notifications_processor(N) ->
     N.
 
+%%TODO this process could be started only if needed, killed when not?
 notifications_processor_notifier(Total) when is_number(Total) ->
     receive
         Pending when is_number(Pending) -> notifications_processor_notifier(inform_notifications_processor(Total + Pending))
