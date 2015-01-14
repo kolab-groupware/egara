@@ -153,11 +153,12 @@ process_next_unnasigned(NumRequested, C) when is_number(NumRequested), is_functi
                 QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
                              Rec#egara_incoming_notification.claimed =:= 0]),
                 QC = qlc:cursor(QH),
-                Answers = qlc:next_answers(QC, NumRequested),
-                _NumProcessed = do_next_unnasigned(NumRequested, C, NumRequested, Answers)
-                %%, lager:info("Processed ~p unnasigned notifications", [_NumProcessed])
+                qlc:next_answers(QC, NumRequested)
         end,
-    mnesia:activity(transaction, F).
+    Answers = mnesia:activity(transaction, F),
+    NumProcessed = do_next_unnasigned(NumRequested, C, NumRequested, Answers),
+    lager:info("Processed ~p unnasigned notifications", [NumProcessed]),
+    NumRequested.
 
 next_unnasigned([]) ->
     none;
