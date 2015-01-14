@@ -16,55 +16,57 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara_notifications_processor).
-
 -behaviour(gen_server).
 
 %% API
 -export([ start_link/0,
           notifications_received/0,
           process_backlog/0,
-          process_notification/2,
-          start_work_after_assigned/0
+          queue_drained/0
         ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
+-define(BACKLOG_BATCHSIZE, 1).
+
 %% API
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 notifications_received() -> gen_server:cast(?MODULE, { notifications_received }).
 process_backlog() -> gen_server:cast(?MODULE, { process_backlog }).
+queue_drained() -> process_backlog().
 
 %% private/internal functions
 process_backlog_if_notifications(0) ->
+    lager:info("NO NOTIFICATIONS!"),
     ok;
 process_backlog_if_notifications(N) when is_number(N) ->
-    process_backlog();
+    start_a_worker();
 process_backlog_if_notifications(_) ->
+    lager:info("GOT SOMETHING WE DIDN'T EXPECT?"),
     ok.
-clear_orphans() ->
-    process_backlog_if_notifications(egara_notification_store:release_orphaned()).
-
-start_work_after_assigned() ->
-    receive
-        { Key, _Term } ->
-            %%TODO actual work!
-            egara_notification_store:remove(Key),
-            %%lager:info("Finished ~p", [Key]),
-            ok;
-        terminate ->
-            ok;
-        Val ->
-            lager:warning("Got something unexpected during processing weird ~p", [Val]),
-            error
+process_backlog_if_notifications() ->
+    case egara_notification_store:next_unnasigned() of
+        none -> process_backlog_if_notifications(egara_notification_store:release_orphaned());
+        error -> error;
+        _ -> process_backlog_if_notifications(1) % we don't really know how many, but there is at least 1
     end.
 
-process_notification(Key, Term) ->
-    PID = spawn(fun egara_notifications_processor:start_work_after_assigned/0),
-    case egara_notification_store:assign(Key, PID) of
-        ok -> PID ! { Key, Term }, ok;
-         V -> lager:info("Terminating ~p due to getting ~p", [PID, V]), PID ! terminate, notok
+start_a_worker() ->
+    try
+        case poolboy:checkout(egara_notification_workers, false, 10) of
+            Worker when is_pid(Worker) ->
+                %%lager:info("Checked out ~p", [Worker]),
+                gen_server:cast(Worker, process_events),
+                start_a_worker();
+            _ ->
+                ok
+        end
+    catch
+        _ ->
+            ok
     end.
+
 
 %% gen_server callbacks
 init([]) ->
@@ -80,10 +82,7 @@ handle_cast({ notifications_received}, State) ->
 
 handle_cast({ process_backlog}, State) ->
     lager:info("Handling backlog...."),
-    case egara_notification_store:process_next_unnasigned(50, fun egara_notifications_processor:process_notification/2) of
-        NumProcessed when is_number(NumProcessed), NumProcessed > 0 -> process_backlog();
-        _ -> clear_orphans(), ok
-    end,
+    process_backlog_if_notifications(),
     { noreply, State };
 
 handle_cast(_Msg, State) ->

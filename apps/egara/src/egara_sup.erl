@@ -40,7 +40,16 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
+    lager:info("    Creating resource pools ..."),
+    Pools = [
+             { egara_notification_workers, egara_worker, [ { size, 20 }, { max_overflow, 20 }], [ ] }
+            ],
+    PoolSpecs = lists:map(fun({Name, Module, PoolConfig, WorkerArgs}) ->
+                                  PoolArgs = [{ name, { local, Name } }, { worker_module, Module }],
+                                  poolboy:child_spec(Name, PoolArgs ++ PoolConfig, WorkerArgs)
+                          end, Pools),
+    lager:info("Pools: ~p", [PoolSpecs]),
     Children = [ ?CHILD(egara_notifications_receiver, worker),
                  ?CHILD(egara_notifications_processor, worker) ],
-    {ok, { {one_for_one, 5, 10}, Children} }.
+    {ok, { {one_for_one, 5, 10}, PoolSpecs ++ Children} }.
 

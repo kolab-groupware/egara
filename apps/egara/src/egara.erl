@@ -33,11 +33,6 @@ start(_StartType, _StartArgs) ->
     lager:info("    Initializing the mnesia-based notification queue ..."),
     egara_notification_store:install([node() | nodes()]),
     egara_notification_store:start(),
-    lager:info("    Creating worker job queue ..."),
-    jobs:add_queue(egara_notification_workers,
-                   [{ type, fifo },
-                    { max_time, 5 }, %% 5 seconds
-                    { max_size, 50 }]),
     lager:info("    Starting the main supervisor ..."),
     egara_sup:start_link().
 

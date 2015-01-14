@@ -132,7 +132,7 @@ release_orphaned() ->
     mnesia:activity(transaction, F).
 
 assign_next(PID) when is_pid(PID) ->
-    process_next_unnasigned(1, fun(Key, _) -> assign(Key, PID) end).
+    process_next_unnasigned(1, fun(Key, _) -> assign(Key, PID), Key end).
 
 %% RequestedN -> the max number of notifications to process
 %% C -> continuation to call with each notification
@@ -148,6 +148,18 @@ do_next_unnasigned(RequestedN, C, N, [Key|T]) ->
         _ -> RequestedN - N
     end.
 
+process_next_unnasigned(1, C) when is_function(C, 2) ->
+    F = fun() ->
+                QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
+                             Rec#egara_incoming_notification.claimed =:= 0]),
+                QC = qlc:cursor(QH),
+                qlc:next_answers(QC, 1)
+        end,
+    Answers = mnesia:activity(transaction, F),
+    case Answers of
+        [] -> notfound;
+        [Record] -> C(Record#egara_incoming_notification.id, Record#egara_incoming_notification.term)
+    end;
 process_next_unnasigned(NumRequested, C) when is_number(NumRequested), is_function(C, 2) ->
     F = fun() ->
                 QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
