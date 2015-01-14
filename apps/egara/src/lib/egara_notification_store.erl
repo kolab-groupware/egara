@@ -97,7 +97,7 @@ assign(Key, PID) when is_pid(PID) ->
                 %% check if claimed is set and if so if the process is still running
                 case mnesia:match_object(Pattern) of
                     [Record] -> mnesia:write(Record#egara_incoming_notification{ claimed = PID }), ok;
-                    [] -> { error, notfound}
+                    [] -> notfound
                 end
         end,
     mnesia:activity(transaction, F).
