@@ -78,6 +78,18 @@ notification(Key) ->
 assign(#egara_incoming_notification{ id = Key }, PID) when is_pid(PID) ->
     assign(Key, PID);
 
+assign(Key, Fun) when is_function(Fun) ->
+    F = fun() ->
+                QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
+                             Rec#egara_incoming_notification.claimed =:= 0, Rec#egara_incoming_notification.id =:= Key ]),
+                QC = qlc:cursor(QH),
+                Answers = qlc:next_answers(QC, 1),
+                case Answers of
+                    [Record|_] -> lager:info("Going to spawn ~p for ~p", [Fun, Key]), mnesia:write(Record#egara_incoming_notification{ claimed = spawn(Fun) });
+                    _ -> notfound
+                end
+        end,
+    mnesia:activity(transaction, F);
 assign(Key, PID) when is_pid(PID) ->
     %%TODO: make this more efficient by using qlc; currently scans whole table!
     Pattern = #egara_incoming_notification{ _ = '_', id = Key, claimed = 0 },
