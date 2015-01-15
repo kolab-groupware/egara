@@ -25,20 +25,18 @@
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
-
+-define(BATCH_SIZE, 500).
 
 start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
 
-init(Args) ->
+init(_Args) ->
     { ok, [] }.
 
 handle_call(_Request, _From, State) ->
     { reply, ok, State }.
 
 handle_cast(process_events, State) ->
-    Key = egara_notification_store:assign_next(self()),
-    %%lager:info("~p is starting to process... ~p", [self(), Key]),
-    notification_assigned(Key),
+    process_as_many_events_as_possible(?BATCH_SIZE),
     { noreply, State };
 
 handle_cast(_Msg, State) ->
@@ -47,20 +45,32 @@ handle_cast(_Msg, State) ->
 handle_info(_Info, State) ->
     { noreply, State }.
 
-terminate(_Reason, State) ->
+terminate(_Reason, _State) ->
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 %% private API
+process_as_many_events_as_possible(0) ->
+    egara_notifications_processor:queue_drained(),
+    ok;
+process_as_many_events_as_possible(N) ->
+    Key = egara_notification_store:assign_next(self()),
+    %%lager:info("~p is starting to process... ~p", [self(), Key]),
+    case notification_assigned(Key) of
+        again -> process_as_many_events_as_possible(N - 1);
+        _ -> ok
+    end.
+
 notification_assigned(notfound) ->
     %%lager:info("Checking in ~p", [self()]),
     poolboy:checkin(egara_notification_workers, self()),
-    egara_notifications_processor:queue_drained();
+    egara_notifications_processor:queue_drained(),
+    done;
 notification_assigned(Key) ->
+    %%TODO actual processing
     egara_notification_store:remove(Key),
-    gen_server:cast(self(), process_events),
     %%lager:info("Done with ~p", [Key]),
-    ok.
+    again.
 
