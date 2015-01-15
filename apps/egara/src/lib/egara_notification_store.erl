@@ -17,7 +17,7 @@
 
 -module(egara_notification_store).
 -export([ install/1, start/0,
-          notification/1, next_unnasigned/0, process_next_unnasigned/2,
+          notification/1, next_unassigned/0, process_next_unassigned/2,
           add/2, add/3, remove/1,
           assign/2, assign_next/1, assigned_to/1,
           release/1, release/2, release_orphaned/0,
@@ -162,17 +162,17 @@ assign_next(PID) when is_pid(PID) ->
 %% C -> continuation to call with each notification
 %% N -> countdown to 0
 %% [] -> List of matching objects
-do_next_unnasigned(RequestedN, _, 0, _) ->
+do_next_unassigned(RequestedN, _, 0, _) ->
     RequestedN;
-do_next_unnasigned(RequestedN, _, N, []) ->
+do_next_unassigned(RequestedN, _, N, []) ->
     RequestedN - N;
-do_next_unnasigned(RequestedN, C, N, [Key|T]) ->
+do_next_unassigned(RequestedN, C, N, [Key|T]) ->
     case C(Key#egara_incoming_notification.id, Key#egara_incoming_notification.term) of
-        ok -> do_next_unnasigned(RequestedN, C, N - 1, T);
+        ok -> do_next_unassigned(RequestedN, C, N - 1, T);
         _ -> RequestedN - N
     end.
 
-process_next_unnasigned(1, C) when is_function(C, 2) ->
+process_next_unassigned(1, C) when is_function(C, 2) ->
     F = fun() ->
                 QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
                              Rec#egara_incoming_notification.claimed =:= 0]),
@@ -184,7 +184,7 @@ process_next_unnasigned(1, C) when is_function(C, 2) ->
         [] -> notfound;
         [Record] -> C(Record#egara_incoming_notification.id, Record#egara_incoming_notification.term)
     end;
-process_next_unnasigned(NumRequested, C) when is_number(NumRequested), is_function(C, 2) ->
+process_next_unassigned(NumRequested, C) when is_number(NumRequested), is_function(C, 2) ->
     F = fun() ->
                 QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
                              Rec#egara_incoming_notification.claimed =:= 0]),
@@ -192,23 +192,23 @@ process_next_unnasigned(NumRequested, C) when is_number(NumRequested), is_functi
                 qlc:next_answers(QC, NumRequested)
         end,
     Answers = mnesia:activity(transaction, F),
-    NumProcessed = do_next_unnasigned(NumRequested, C, NumRequested, Answers),
-    lager:info("Processed ~p unnasigned notifications", [NumProcessed]),
+    NumProcessed = do_next_unassigned(NumRequested, C, NumRequested, Answers),
+    lager:info("Processed ~p unassigned notifications", [NumProcessed]),
     NumRequested.
 
-next_unnasigned([]) ->
+next_unassigned([]) ->
     none;
-next_unnasigned([H|_]) ->
+next_unassigned([H|_]) ->
     H#egara_incoming_notification.id;
-next_unnasigned(_) ->
+next_unassigned(_) ->
     error.
-next_unnasigned() ->
+next_unassigned() ->
     F = fun() ->
                 QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
                              Rec#egara_incoming_notification.claimed =:= 0]),
                 QC = qlc:cursor(QH),
                 Answers = qlc:next_answers(QC, 1),
-                next_unnasigned(Answers)
+                next_unassigned(Answers)
         end,
     mnesia:activity(transaction, F).
 
