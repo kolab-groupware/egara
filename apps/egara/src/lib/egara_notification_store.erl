@@ -85,19 +85,20 @@ assign(Key, Fun) when is_function(Fun) ->
                 QC = qlc:cursor(QH),
                 Answers = qlc:next_answers(QC, 1),
                 case Answers of
-                    [Record|_] -> lager:info("Going to spawn ~p for ~p", [Fun, Key]), mnesia:write(Record#egara_incoming_notification{ claimed = spawn(Fun) });
+                    [Record|_] -> mnesia:write(Record#egara_incoming_notification{ claimed = spawn(Fun) });
                     _ -> notfound
                 end
         end,
     mnesia:activity(transaction, F);
 assign(Key, PID) when is_pid(PID) ->
-    %%TODO: make this more efficient by using qlc; currently scans whole table!
-    Pattern = #egara_incoming_notification{ _ = '_', id = Key, claimed = 0 },
     F = fun() ->
-                %% check if claimed is set and if so if the process is still running
-                case mnesia:match_object(Pattern) of
-                    [Record] -> mnesia:write(Record#egara_incoming_notification{ claimed = PID }), ok;
-                    [] -> notfound
+                QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
+                             Rec#egara_incoming_notification.claimed =:= 0, Rec#egara_incoming_notification.id =:= Key ]),
+                QC = qlc:cursor(QH),
+                Answers = qlc:next_answers(QC, 1),
+                case Answers of
+                    [Record|_] -> mnesia:write(Record#egara_incoming_notification{ claimed = PID });
+                    _ -> notfound
                 end
         end,
     mnesia:activity(transaction, F).
@@ -125,14 +126,24 @@ release(Key) ->
 
 release_orphaned() ->
     F = fun() ->
-                QH = qlc:q([ Key || #egara_incoming_notification{ id = Key, claimed = PID } <- mnesia:table(egara_incoming_notification),
+                QH = qlc:q([ Record || #egara_incoming_notification{ claimed = PID } = Record <- mnesia:table(egara_incoming_notification),
                              is_pid(PID), process_info(PID) =:= undefined]),
-                qlc:fold(fun(Key, N) -> release(Key), N + 1 end, 0, QH)
+                qlc:fold(fun(Record, N) -> mnesia:write(Record#egara_incoming_notification{ claimed = 0 }), N + 1 end, 0, QH)
         end,
     mnesia:activity(transaction, F).
 
 assign_next(PID) when is_pid(PID) ->
-    process_next_unnasigned(1, fun(Key, _) -> assign(Key, PID), Key end).
+    F = fun() ->
+                QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
+                             Rec#egara_incoming_notification.claimed =:= 0]),
+                QC = qlc:cursor(QH),
+                Answers = qlc:next_answers(QC, 1),
+                case Answers of
+                    [Record|_] -> mnesia:write(Record#egara_incoming_notification{ claimed = PID }), Record#egara_incoming_notification.id;
+                    _ -> notfound
+                end
+        end,
+    mnesia:activity(transaction, F).
 
 %% RequestedN -> the max number of notifications to process
 %% C -> continuation to call with each notification
