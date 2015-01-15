@@ -18,93 +18,65 @@
 -module(egara_notifications_receiver).
 
 -behaviour(gen_server).
--include_lib("kernel/include/file.hrl").
 
 %% API
 -export([ start_link/0
         , notification_received/1
-        , poke/0
-        , poke/1
-        , num_pokes/0
         ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--record(state, {num_pokes = 0}).
--define(PF_LOCAL, 1).
--define(SOCK_DGRAM, 2).
--define(UNIX_PATH_MAX, 108).
--define(MAX_SLEEP_MS, 1000).
--define(MIN_SLEEP_MS, 1).
+-record(state, { storage_id = 0, processor_notifier_pid }).
+-define(NOTIFICATION_BATCH_SIZE, 500).
 
 %% API
+start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+notification_received(NotificationJson) -> gen_server:cast(?MODULE, { notification, NotificationJson }).
 
-start_link()    -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-notification_received(Notification) -> gen_server:cast(?MODULE, { notification, Notification }).
-poke()          -> poke(1).
-poke(N)         -> gen_server:call(?MODULE, {poke, N}).
-num_pokes()     -> gen_server:call(?MODULE, num_pokes).
+%% private/internal functions
+inform_notifications_processor(N) when is_number(N), N >= ?NOTIFICATION_BATCH_SIZE ->
+    egara_notifications_processor:process_backlog(),
+    0;
+inform_notifications_processor(N) ->
+    N.
 
+%%TODO this process could be started only if needed, killed when not?
+notifications_processor_notifier(Total) when is_number(Total) ->
+    receive
+        Pending when is_number(Pending) -> notifications_processor_notifier(inform_notifications_processor(Total + Pending))
+    after 1000 ->
+        if Total > 0 -> inform_notifications_processor(?NOTIFICATION_BATCH_SIZE);
+           true -> ok
+        end,
+        notifications_processor_notifier(0)
+    end.
+
+start_notification_reception() ->
+    case application:get_env(imap_server) of
+        "cyrus" -> egara_incoming_cyrus_imap:start_reception();
+        _ -> egara_incoming_cyrus_imap:start_reception() %% default
+    end.
 
 %% gen_server callbacks
 init([]) ->
-    %% get the path to the listen socket, either from the app config
-    %% or here
-    case application:get_env(notification_socket_path) of
-        Value when is_binary(Value) -> SocketPath = Value;
-        _ -> SocketPath = <<"/tmp/egara-notify">>
-    end,
+    MaxKey = egara_notification_store:max_key(),
+    Rv = start_notification_reception(),
+    %%TODO: on Rv = error, do something appropriate
+    lager:info("Notification reception started ... ~p", [Rv]),
+    { ok, #state{ storage_id = MaxKey + 1, processor_notifier_pid = spawn(fun() -> notifications_processor_notifier(0) end) } }.
 
-    %% see if the file exists, and if it does, remove it if it is a socket
-    %% allows to start the application multiple times, which is a good thing
-    case file:read_file_info(SocketPath) of
-        { ok, #file_info{ type = other } } -> ok = file:delete(SocketPath); %% TODO: handle errror with a report
-        { ok, _ } -> notok; %% do not remove a non-socket file. TODO: handle errror with a report, clean exit
-        {error, _} -> ok
-    end,
-
-    { ok, Socket } = procket:socket(?PF_LOCAL, ?SOCK_DGRAM, 0),
-    Sun = <<?PF_LOCAL:16/native, % sun_family
-            SocketPath/binary,   % address
-            0:((?UNIX_PATH_MAX-byte_size(SocketPath))*8) %% zero out the rest
-          >>,
-
-    case procket:bind(Socket, Sun) of
-        ok -> spawn(fun() -> recvNotification(Socket, ?MIN_SLEEP_MS) end);
-        { error, PosixError } -> lager:error("Could not bind to notification socket; error is: ~p", [PosixError])
-    end,
-    { ok, #state{} }.
-
-recvNotification(Socket, SleepMs) ->
-    case procket:recvfrom(Socket, 16#FFFF) of
-        { error, eagain } ->
-            NewSleepMs = min(SleepMs * 2, ?MAX_SLEEP_MS),
-            timer:sleep(NewSleepMs),
-            recvNotification(Socket, NewSleepMs);
-        { ok, Buf } ->
-            %%lager:info("~s", [binary_to_list(Buf)]),
-            Components = binary:split(Buf, <<"\0">>, [global]),
-            lager:info("~p", [Components]),
-            recvNotification(Socket, ?MIN_SLEEP_MS)
-    end.
-
-handle_call(num_pokes, _From, State = #state{ num_pokes = PokeCount }) ->
-    {reply, PokeCount, State};
-
-handle_call({poke, N}, _From, State) ->
-    NewPokeCount = State#state.num_pokes + N,
-    NewState     = State#state{num_pokes = NewPokeCount},
-    Reply        = {ok, NewPokeCount},
-    {reply, Reply, NewState}.
+handle_call(_, _From, State) ->
+    { reply, ok, State }.
 
 handle_cast({ notification, Notification }, State) when is_binary(Notification) ->
     try jsx:decode(Notification) of
-        Term -> egara_notification_store:add(42, Term) %% FIXME: proper key
+        Term -> egara_notification_store:add(State#state.storage_id, Term),
+                State#state.processor_notifier_pid ! 1,
+                { noreply, State#state{ storage_id = State#state.storage_id + 1 } } %% if paralellized, this needs to be syncronized
     catch
-        error:_ -> ok %% Log it?
-    end,
-    { noreply, State };
+        error:_ -> { noreply, State }
+    end;
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -116,11 +88,11 @@ terminate(_Reason, _State) ->
     ok.
 
 %% Upgrade from 2
-code_change(_OldVsn, State, [from2to3]) ->
+code_change(_OldVsn, State, [from1To2]) ->
     error_logger:info_msg("CODE_CHANGE from 2~n"),
-    {state, NumPokes} = State, %% State here is the 'old' format, with 1 field
-    NewState = #state{num_pokes=NumPokes}, %% will assume default for num_prods
-    {ok, NewState}.
+    { state, StorageId } = State,
+    NewState = #state{ storage_id = StorageId  },
+    { ok, NewState }.
 
 %% Note downgrade code_change not implemented
     

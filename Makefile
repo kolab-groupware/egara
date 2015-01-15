@@ -13,4 +13,4 @@ egara:
 	ENABLE_STATIC=no rebar compile
 
 run:
-	erl -pa apps/*/ebin deps/*/ebin -s egara
+	erl -pa apps/*/ebin deps/*/ebin -config app -s egara
