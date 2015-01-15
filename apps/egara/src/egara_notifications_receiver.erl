@@ -28,13 +28,14 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -record(state, { storage_id = 0, processor_notifier_pid }).
+-define(NOTIFICATION_BATCH_SIZE, 500).
 
 %% API
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 notification_received(NotificationJson) -> gen_server:cast(?MODULE, { notification, NotificationJson }).
 
 %% private/internal functions
-inform_notifications_processor(N) when is_number(N), N > 500 ->
+inform_notifications_processor(N) when is_number(N), N >= ?NOTIFICATION_BATCH_SIZE ->
     egara_notifications_processor:process_backlog(),
     0;
 inform_notifications_processor(N) ->
@@ -45,7 +46,9 @@ notifications_processor_notifier(Total) when is_number(Total) ->
     receive
         Pending when is_number(Pending) -> notifications_processor_notifier(inform_notifications_processor(Total + Pending))
     after 1000 ->
-        inform_notifications_processor(Total),
+        if Total > 0 -> inform_notifications_processor(?NOTIFICATION_BATCH_SIZE);
+           true -> ok
+        end,
         notifications_processor_notifier(0)
     end.
 
