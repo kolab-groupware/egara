@@ -41,8 +41,9 @@ start_link() ->
 
 init([]) ->
     lager:info("    Creating resource pools ..."),
+    %% TODO: make the pool size configurable
     Pools = [
-             { egara_notification_workers, egara_worker, [ { size, 20 }, { max_overflow, 20 }], [ ] }
+             { egara_notification_workers, egara_worker, [ { size, 8 }, { max_overflow, 0 }], [ ] }
             ],
     PoolSpecs = lists:map(fun({Name, Module, PoolConfig, WorkerArgs}) ->
                                   PoolArgs = [{ name, { local, Name } }, { worker_module, Module }],
