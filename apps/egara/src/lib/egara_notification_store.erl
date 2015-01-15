@@ -19,7 +19,7 @@
 -export([ install/1, start/0,
           notification/1, next_unnasigned/0, process_next_unnasigned/2,
           add/2, add/3, remove/1,
-          assign/2, assign_next/1,
+          assign/2, assign_next/1, assigned_to/1,
           release/1, release/2, release_orphaned/0,
           max_key/0]).
 -include_lib("stdlib/include/qlc.hrl").
@@ -129,6 +129,19 @@ release_orphaned() ->
                 QH = qlc:q([ Record || #egara_incoming_notification{ claimed = PID } = Record <- mnesia:table(egara_incoming_notification),
                              is_pid(PID), process_info(PID) =:= undefined]),
                 qlc:fold(fun(Record, N) -> mnesia:write(Record#egara_incoming_notification{ claimed = 0 }), N + 1 end, 0, QH)
+        end,
+    mnesia:activity(transaction, F).
+
+assigned_to(Key) ->
+    F = fun() ->
+                QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
+                             Rec#egara_incoming_notification.id =:= Key]),
+                QC = qlc:cursor(QH),
+                Answers = qlc:next_answers(QC, 1),
+                case Answers of
+                    [Record|_] -> Record#egara_incoming_notification.claimed;
+                    _ -> notfound
+                end
         end,
     mnesia:activity(transaction, F).
 
