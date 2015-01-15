@@ -34,37 +34,45 @@
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 notifications_received() -> gen_server:cast(?MODULE, { notifications_received }).
 process_backlog() -> gen_server:cast(?MODULE, { process_backlog }).
+process_backlog([]) -> gen_server:cast(?MODULE, { process_backlog }).
 queue_drained() -> process_backlog().
 
 %% private/internal functions
+process_backlog_if_notifications(error) ->
+    %%lager:info("ERRRORS, AND NO NOTIFICATIONS!"),
+    ok;
+process_backlog_if_notifications(none) ->
+    process_backlog_if_notifications(egara_notification_store:release_orphaned()),
+    %%lager:info("NO NOTIFICATIONS! ~p", [egara_notification_store:next_unassigned()]),
+    ok;
 process_backlog_if_notifications(0) ->
-    lager:info("NO NOTIFICATIONS!"),
+    %%lager:info("ZERO NOTIFICATIONS!"),
     ok;
 process_backlog_if_notifications(N) when is_number(N) ->
-    start_a_worker();
+    case start_a_worker(0) of
+        0 -> timer:apply_after(500, ?MODULE, process_backlog, []), ok;
+        NumWorkers -> ok
+    end;
 process_backlog_if_notifications(_) ->
-    lager:info("GOT SOMETHING WE DIDN'T EXPECT?"),
+    %%lager:info("GOT SOMETHING WE DIDN'T EXPECT?"),
     ok.
 process_backlog_if_notifications() ->
-    case egara_notification_store:next_unnasigned() of
-        none -> process_backlog_if_notifications(egara_notification_store:release_orphaned());
-        error -> error;
-        _ -> process_backlog_if_notifications(1) % we don't really know how many, but there is at least 1
-    end.
+    %%lager:info("Max key: ~p, assigned to: ~p", [egara_notification_store:max_key(), egara_notification_store:assigned_to(egara_notification_store:max_key())]),
+    process_backlog_if_notifications(egara_notification_store:next_unassigned()).
 
-start_a_worker() ->
+start_a_worker(N) ->
     try
         case poolboy:checkout(egara_notification_workers, false, 10) of
             Worker when is_pid(Worker) ->
                 %%lager:info("Checked out ~p", [Worker]),
                 gen_server:cast(Worker, process_events),
-                start_a_worker();
+                start_a_worker(N + 1);
             _ ->
-                ok
+                N
         end
     catch
         _ ->
-            ok
+            N
     end.
 
 
