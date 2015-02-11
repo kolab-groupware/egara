@@ -52,10 +52,14 @@ notifications_processor_notifier(Total) when is_number(Total) ->
         notifications_processor_notifier(0)
     end.
 
+start_receiver([]) -> ok;
+start_receiver([cyrus|Tail]) -> lager:info("Starting receiver: cyrus"), egara_incoming_cyrus_imap:start_reception(), start_receiver(Tail);
+start_receiver([_|Tail]) -> start_receiver(Tail).
+
 start_notification_reception() ->
-    case application:get_env(imap_server) of
-        { ok, "cyrus" } -> egara_incoming_cyrus_imap:start_reception();
-        _ -> egara_incoming_cyrus_imap:start_reception() %% default
+    case application:get_env(receivers) of
+        { ok, Receivers } when is_list(Receivers) -> start_receiver(Receivers);
+        _ -> ok
     end.
 
 %% gen_server callbacks
