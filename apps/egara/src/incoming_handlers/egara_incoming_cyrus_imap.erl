@@ -32,11 +32,13 @@
 start_reception() ->
     %% get the path to the listen socket, either from the app config
     %% or here
-    case application:get_env(notification_socket_path) of
-        Value when is_binary(Value) -> SocketPath = Value;
-        _ -> SocketPath = <<"/tmp/egara-notify">>
+    DefaultSocketPath = <<"/var/lib/imap/socket/notify">>,
+    case application:get_env(cyrus) of
+        { ok, Config } when is_list(Config) -> SocketPath = proplists:get_value(notification_socket_path, Config, DefaultSocketPath);
+        _ -> SocketPath = DefaultSocketPath
     end,
 
+    lager:info("Listening for cyrus-imap events on socket ~p", [SocketPath]),
     %% see if the file exists, and if it does, remove it if it is a socket
     %% allows to start the application multiple times, which is a good thing
     CleanUp =
