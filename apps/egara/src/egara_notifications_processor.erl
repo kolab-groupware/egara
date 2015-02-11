@@ -85,10 +85,10 @@ init([]) ->
 handle_call(_, _From, State) ->
     { reply, ok, State }.
 
-handle_cast({ notifications_received}, State) ->
+handle_cast({ notifications_received }, State) ->
     { noreply, State };
 
-handle_cast({ process_backlog}, State) ->
+handle_cast({ process_backlog }, State) ->
     lager:info("Handling backlog...."),
     process_backlog_if_notifications(),
     { noreply, State };
