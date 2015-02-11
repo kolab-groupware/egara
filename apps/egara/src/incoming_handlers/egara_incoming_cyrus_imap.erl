@@ -88,7 +88,12 @@ recvCyrusNotification(Socket, SleepMs) ->
             Components = binary:split(Buf, <<"\0">>, [global]),
             %%lager:info("~p", [Components]),
             Json = cherryPickNotification(Components),
-            egara_notifications_receiver:notification_received(Json),
+            try jsx:decode(Json) of
+                Term -> egara_notifications_receiver:notification_received(Term)
+            catch
+                error:_ -> ok
+            end,
+
             recvCyrusNotification(Socket, ?MIN_SLEEP_MS)
     end.
 

@@ -69,14 +69,10 @@ init([]) ->
 handle_call(_, _From, State) ->
     { reply, ok, State }.
 
-handle_cast({ notification, Notification }, State) when is_binary(Notification) ->
-    try jsx:decode(Notification) of
-        Term -> egara_notification_store:add(State#state.storage_id, Term),
-                State#state.processor_notifier_pid ! 1,
-                { noreply, State#state{ storage_id = State#state.storage_id + 1 } } %% if paralellized, this needs to be syncronized
-    catch
-        error:_ -> { noreply, State }
-    end;
+handle_cast({ notification, Notification }, State) ->
+    egara_notification_store:add(State#state.storage_id, Notification),
+    State#state.processor_notifier_pid ! 1,
+    { noreply, State#state{ storage_id = State#state.storage_id + 1 } }; %% if paralellized, this needs to be syncronized
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
