@@ -30,7 +30,7 @@
 start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
 
 init(_Args) ->
-    { ok, ImapConfig } = application:get_env(imap),
+    { ok, ImapConfig } = application:get_env(imap_events),
     { ok, ImapConfig }.
 
 handle_call(_Request, _From, State) ->
