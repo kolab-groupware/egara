@@ -54,7 +54,7 @@ notifications_processor_notifier(Total) when is_number(Total) ->
 
 start_notification_reception() ->
     case application:get_env(imap_server) of
-        "cyrus" -> egara_incoming_cyrus_imap:start_reception();
+        { ok, "cyrus" } -> egara_incoming_cyrus_imap:start_reception();
         _ -> egara_incoming_cyrus_imap:start_reception() %% default
     end.
 
