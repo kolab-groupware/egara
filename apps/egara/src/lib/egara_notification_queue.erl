@@ -15,7 +15,7 @@
 %% You should have received a copy of the GNU General Public License
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
--module(egara_notification_store).
+-module(egara_notification_queue).
 -export([ install/1, start/0,
           notification/1, next_unassigned/0, process_next_unassigned/2,
           add/2, add/3, remove/1,
@@ -152,7 +152,7 @@ assign_next(PID) when is_pid(PID) ->
                 QC = qlc:cursor(QH),
                 Answers = qlc:next_answers(QC, 1),
                 case Answers of
-                    [Record|_] -> mnesia:write(Record#egara_incoming_notification{ claimed = PID }), Record#egara_incoming_notification.id;
+                    [Record|_] -> mnesia:write(Record#egara_incoming_notification{ claimed = PID }), { Record#egara_incoming_notification.id, Record#egara_incoming_notification.term };
                     _ -> notfound
                 end
         end,

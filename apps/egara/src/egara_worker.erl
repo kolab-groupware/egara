@@ -57,7 +57,7 @@ process_as_many_events_as_possible(0) ->
     egara_notifications_processor:queue_drained(),
     ok;
 process_as_many_events_as_possible(N) ->
-    Key = egara_notification_store:assign_next(self()),
+    Status = egara_notification_queue:assign_next(self()),
     %%lager:info("~p is starting to process... ~p", [self(), Key]),
     case notification_assigned(Status) of
         again -> process_as_many_events_as_possible(N - 1);

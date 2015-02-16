@@ -64,7 +64,7 @@ start_notification_reception() ->
 
 %% gen_server callbacks
 init([]) ->
-    MaxKey = egara_notification_store:max_key(),
+    MaxKey = egara_notification_queue:max_key(),
     Rv = start_notification_reception(),
     %%TODO: on Rv = error, do something appropriate
     lager:info("Notification reception started ... ~p", [Rv]),
@@ -74,7 +74,7 @@ handle_call(_, _From, State) ->
     { reply, ok, State }.
 
 handle_cast({ notification, Notification }, State) ->
-    egara_notification_store:add(State#state.storage_id, Notification),
+    egara_notification_queue:add(State#state.storage_id, Notification),
     State#state.processor_notifier_pid ! 1,
     { noreply, State#state{ storage_id = State#state.storage_id + 1 } }; %% if paralellized, this needs to be syncronized
 
