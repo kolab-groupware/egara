@@ -52,15 +52,19 @@ notifications_processor_notifier(Total) when is_number(Total) ->
         notifications_processor_notifier(0)
     end.
 
+start_receiver([]) -> ok;
+start_receiver([cyrus|Tail]) -> lager:info("Starting receiver: cyrus"), egara_incoming_cyrus_imap:start_reception(), start_receiver(Tail);
+start_receiver([_|Tail]) -> start_receiver(Tail).
+
 start_notification_reception() ->
-    case application:get_env(imap_server) of
-        "cyrus" -> egara_incoming_cyrus_imap:start_reception();
-        _ -> egara_incoming_cyrus_imap:start_reception() %% default
+    case application:get_env(receivers) of
+        { ok, Receivers } when is_list(Receivers) -> start_receiver(Receivers);
+        _ -> ok
     end.
 
 %% gen_server callbacks
 init([]) ->
-    MaxKey = egara_notification_store:max_key(),
+    MaxKey = egara_notification_queue:max_key(),
     Rv = start_notification_reception(),
     %%TODO: on Rv = error, do something appropriate
     lager:info("Notification reception started ... ~p", [Rv]),
@@ -69,14 +73,10 @@ init([]) ->
 handle_call(_, _From, State) ->
     { reply, ok, State }.
 
-handle_cast({ notification, Notification }, State) when is_binary(Notification) ->
-    try jsx:decode(Notification) of
-        Term -> egara_notification_store:add(State#state.storage_id, Term),
-                State#state.processor_notifier_pid ! 1,
-                { noreply, State#state{ storage_id = State#state.storage_id + 1 } } %% if paralellized, this needs to be syncronized
-    catch
-        error:_ -> { noreply, State }
-    end;
+handle_cast({ notification, Notification }, State) ->
+    egara_notification_queue:add(State#state.storage_id, Notification),
+    State#state.processor_notifier_pid ! 1,
+    { noreply, State#state{ storage_id = State#state.storage_id + 1 } }; %% if paralellized, this needs to be syncronized
 
 handle_cast(_Msg, State) ->
     {noreply, State}.

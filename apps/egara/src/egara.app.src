@@ -17,7 +17,5 @@
                  ]},
   {mod, { egara, []}},
   {env, [
-          { imap_server, "cyrus" }
-%%        { notification_socket_path, <<"/tmp/egara-notify">>}
     ]}
  ]}.

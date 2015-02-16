@@ -31,8 +31,8 @@ start() -> application:start(egara).
 start(_StartType, _StartArgs) ->
     lager:info("Starting Egara ..."),
     lager:info("    Initializing the mnesia-based notification queue ..."),
-    egara_notification_store:install([node() | nodes()]),
-    egara_notification_store:start(),
+    egara_notification_queue:install([node() | nodes()]),
+    egara_notification_queue:start(),
     lager:info("    Starting the main supervisor ..."),
     egara_sup:start_link().
 

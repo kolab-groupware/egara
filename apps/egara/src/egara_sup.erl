@@ -41,16 +41,19 @@ start_link() ->
 
 init([]) ->
     lager:info("    Creating resource pools ..."),
-    %% TODO: make the pool size configurable
+    WorkerSize = application:get_env(egara, worker_pool_size, erlang:system_info(schedulers_online) * 2),
     Pools = [
-             { egara_notification_workers, egara_worker, [ { size, 8 }, { max_overflow, 0 }], [ ] }
+             { egara_notification_workers, egara_worker, [ { size, WorkerSize }, { max_overflow, 0 }], [ ] },
+             { egara_storage_pool, egara_storage, [ { size, WorkerSize }, { max_overflow, 0 }], [ ] }
             ],
     PoolSpecs = lists:map(fun({Name, Module, PoolConfig, WorkerArgs}) ->
                                   PoolArgs = [{ name, { local, Name } }, { worker_module, Module }],
                                   poolboy:child_spec(Name, PoolArgs ++ PoolConfig, WorkerArgs)
                           end, Pools),
     lager:info("Pools: ~p", [PoolSpecs]),
-    Children = [ ?CHILD(egara_notifications_receiver, worker),
-                 ?CHILD(egara_notifications_processor, worker) ],
+    Children = [
+                 ?CHILD(egara_notifications_receiver, worker),
+                 ?CHILD(egara_notifications_processor, worker)
+               ],
     {ok, { {one_for_one, 5, 10}, PoolSpecs ++ Children} }.
 

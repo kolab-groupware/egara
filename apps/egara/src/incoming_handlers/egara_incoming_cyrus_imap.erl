@@ -19,7 +19,7 @@
 -behavior(egara_incoming_handler).
 
 %% API
--export([ start_reception/0 ]).
+-export([ start_reception/0, launchRecvCyrusNotification/1, recvCyrusNotification/2 ]).
 
 -include_lib("kernel/include/file.hrl").
 
@@ -32,11 +32,13 @@
 start_reception() ->
     %% get the path to the listen socket, either from the app config
     %% or here
-    case application:get_env(notification_socket_path) of
-        Value when is_binary(Value) -> SocketPath = Value;
-        _ -> SocketPath = <<"/tmp/egara-notify">>
+    DefaultSocketPath = <<"/var/lib/imap/socket/notify">>,
+    case application:get_env(cyrus) of
+        { ok, Config } when is_list(Config) -> SocketPath = proplists:get_value(notification_socket_path, Config, DefaultSocketPath);
+        _ -> SocketPath = DefaultSocketPath
     end,
 
+    lager:info("Listening for cyrus-imap events on socket ~p", [SocketPath]),
     %% see if the file exists, and if it does, remove it if it is a socket
     %% allows to start the application multiple times, which is a good thing
     CleanUp =
@@ -58,8 +60,7 @@ bindSocket(SocketPath) ->
           >>,
 
     case procket:bind(Socket, Sun) of
-        ok -> spawn(fun() -> recvCyrusNotification(Socket, ?MAX_SLEEP_MS) end),
-              %% TODO put above process under supervision; it needs to always be restarted if it crashes
+        ok -> spawn(fun() -> supervisor:start_child(egara_sup, { ?MODULE, { ?MODULE, launchRecvCyrusNotification, [Socket] }, permanent, 5000, worker, [?MODULE]}) end),
               ok;
         { error, PosixError } -> lager:error("Could not bind to notification socket; error is: ~p", [PosixError]), error
     end.
@@ -75,6 +76,10 @@ cherryPickNotification(Terms) ->
     [H|T] = Terms,
     cherryPickNotification(T, null, H).
 
+
+launchRecvCyrusNotification(Socket) ->
+    { ok, spawn_link(?MODULE, recvCyrusNotification, [Socket, ?MIN_SLEEP_MS])  }.
+
 recvCyrusNotification(Socket, SleepMs) ->
     case procket:recvfrom(Socket, 16#FFFF) of
         { error, eagain } ->
@@ -82,11 +87,15 @@ recvCyrusNotification(Socket, SleepMs) ->
             timer:sleep(NewSleepMs),
             recvCyrusNotification(Socket, NewSleepMs);
         { ok, Buf } ->
-            %%lager:info("~s", [binary_to_list(Buf)]),
             Components = binary:split(Buf, <<"\0">>, [global]),
             %%lager:info("~p", [Components]),
             Json = cherryPickNotification(Components),
-            egara_notifications_receiver:notification_received(Json),
+            try jsx:decode(Json) of
+                Term -> egara_notifications_receiver:notification_received(Term)
+            catch
+                error:_ -> ok
+            end,
+
             recvCyrusNotification(Socket, ?MIN_SLEEP_MS)
     end.
 

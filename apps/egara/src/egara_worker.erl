@@ -30,13 +30,21 @@
 start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
 
 init(_Args) ->
-    { ok, [] }.
+    { ok, ImapConfig } = application:get_env(imap_events),
+    { ok, ImapConfig }.
 
 handle_call(_Request, _From, State) ->
     { reply, ok, State }.
 
 handle_cast(process_events, State) ->
-    process_as_many_events_as_possible(?BATCH_SIZE),
+    case poolboy:checkout(egara_storage_pool, false, 10) of
+         Storage when is_pid(Storage) ->
+             %%lager:info("Storing using ~p", [Storage]),
+            process_as_many_events_as_possible(Storage, ?BATCH_SIZE),
+            poolboy:checkin(egara_storage_pool, Storage);
+         _ -> 
+            lager:warning("Unable to get storage!")
+    end,
     { noreply, State };
 
 handle_cast(_Msg, State) ->
@@ -52,25 +60,26 @@ code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 %% private API
-process_as_many_events_as_possible(0) ->
+process_as_many_events_as_possible(_Storage, 0) ->
     egara_notifications_processor:queue_drained(),
     ok;
-process_as_many_events_as_possible(N) ->
-    Key = egara_notification_store:assign_next(self()),
+process_as_many_events_as_possible(Storage, N) ->
+    Status = egara_notification_queue:assign_next(self()),
     %%lager:info("~p is starting to process... ~p", [self(), Key]),
-    case notification_assigned(Key) of
-        again -> process_as_many_events_as_possible(N - 1);
+    case notification_assigned(Storage, Status) of
+        again -> process_as_many_events_as_possible(Storage, N - 1);
         _ -> ok
     end.
 
-notification_assigned(notfound) ->
+notification_assigned(_Storage, notfound) ->
     %%lager:info("Checking in ~p", [self()]),
     poolboy:checkin(egara_notification_workers, self()),
     egara_notifications_processor:queue_drained(),
     done;
-notification_assigned(Key) ->
+notification_assigned(Storage, { Key, Notification }) ->
     %%TODO actual processing
-    egara_notification_store:remove(Key),
     %%lager:info("Done with ~p", [Key]),
+    egara_storage:store_notification(Storage, Key, Notification),
+    egara_notification_queue:remove(Key),
     again.
 
