@@ -1,0 +1,971 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="744.09448819"
+   height="1052.3622047"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="egara_architecture_diagram.svg">
+  <defs
+     id="defs4">
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="34.216837 : 458.0953 : 1"
+       inkscape:vp_y="0 : 818.92084 : 0"
+       inkscape:vp_z="778.31132 : 458.0953 : 1"
+       inkscape:persp3d-origin="406.26408 : 314.46175 : 1"
+       id="perspective6815" />
+    <marker
+       inkscape:stockid="Arrow1Lstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lstart"
+       style="overflow:visible">
+      <path
+         id="path4032"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt"
+         transform="scale(0.8) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow2Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow2Lend"
+       style="overflow:visible;">
+      <path
+         id="path4053"
+         style="fill-rule:evenodd;stroke-width:0.62500000;stroke-linejoin:round;"
+         d="M 8.7185878,4.0337352 L -2.2072895,0.016013256 L 8.7185884,-4.0017078 C 6.9730900,-1.6296469 6.9831476,1.6157441 8.7185878,4.0337352 z "
+         transform="scale(1.1) rotate(180) translate(1,0)" />
+    </marker>
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="-41.783163 : 512.40173 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="702.31132 : 512.40173 : 1"
+       inkscape:persp3d-origin="330.26408 : 337.00803 : 1"
+       id="perspective3976" />
+    <marker
+       inkscape:stockid="Arrow2Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow2Lend-3"
+       style="overflow:visible">
+      <path
+         inkscape:connector-curvature="0"
+         id="path4053-9"
+         style="fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         transform="matrix(-1.1,0,0,-1.1,-1.1,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow2Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow2Lend-0"
+       style="overflow:visible">
+      <path
+         inkscape:connector-curvature="0"
+         id="path4053-5"
+         style="fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         transform="matrix(-1.1,0,0,-1.1,-1.1,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow2Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow2Lend-1"
+       style="overflow:visible">
+      <path
+         inkscape:connector-curvature="0"
+         id="path4053-90"
+         style="fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         transform="matrix(-1.1,0,0,-1.1,-1.1,0)" />
+    </marker>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1.4"
+     inkscape:cx="290.22097"
+     inkscape:cy="523.32439"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="3200"
+     inkscape:window-height="1768"
+     inkscape:window-x="0"
+     inkscape:window-y="-3"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g5398"
+       transform="translate(-100,14)"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360">
+      <rect
+         y="76.996719"
+         x="121.0498"
+         height="80.93856"
+         width="374.89301"
+         id="rect2985"
+         style="fill:#e9ddaf;fill-opacity:1;stroke:#000000;stroke-width:0.87364489;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:10.48373864, 10.48373864;stroke-dashoffset:0" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text2987"
+         y="96.757874"
+         x="164.51389"
+         style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+         xml:space="preserve"><tspan
+           style="font-size:18px"
+           y="96.757874"
+           x="164.51389"
+           id="tspan2989"
+           sodipodi:role="line">Incoming Notification Acceptors</tspan></text>
+      <g
+         transform="translate(-28.263297,-144.45181)"
+         id="g3775">
+        <rect
+           style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-opacity:1"
+           id="rect2991"
+           width="108.5914"
+           height="39.39595"
+           x="164.65486"
+           y="252.32138" />
+        <text
+           xml:space="preserve"
+           style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+           x="185.51404"
+           y="275.3299"
+           id="text2995"
+           sodipodi:linespacing="125%"><tspan
+             sodipodi:role="line"
+             id="tspan2997"
+             x="185.51404"
+             y="275.3299"
+             style="font-size:12px">cyrus-imap</tspan></text>
+      </g>
+      <g
+         transform="translate(164.17076,-114.14724)"
+         id="g3812">
+        <rect
+           style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-opacity:1"
+           id="rect2991-6"
+           width="108.5914"
+           height="39.39595"
+           x="90.661194"
+           y="222.01682" />
+        <text
+           xml:space="preserve"
+           style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+           x="139.23521"
+           y="244.01515"
+           id="text2995-5"
+           sodipodi:linespacing="125%"><tspan
+             sodipodi:role="line"
+             id="tspan2997-4"
+             x="139.23521"
+             y="244.01515"
+             style="font-size:12px">...</tspan></text>
+      </g>
+      <g
+         transform="translate(281.34845,-113.13707)"
+         id="g3812-1">
+        <rect
+           style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-opacity:1"
+           id="rect2991-6-8"
+           width="108.5914"
+           height="39.39595"
+           x="90.661194"
+           y="221.00664" />
+        <text
+           xml:space="preserve"
+           style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+           x="139.23521"
+           y="244.01515"
+           id="text2995-5-5"
+           sodipodi:linespacing="125%"><tspan
+             sodipodi:role="line"
+             id="tspan2997-4-7"
+             x="139.23521"
+             y="244.01515"
+             style="font-size:12px">...</tspan></text>
+      </g>
+    </g>
+    <g
+       id="g4012"
+       transform="translate(-107.17639,26)"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360">
+      <rect
+         y="179.70435"
+         x="128.40334"
+         height="83.614716"
+         width="207.86346"
+         id="rect3929"
+         style="fill:#f6ffd5;fill-opacity:1;stroke:#000000;stroke-width:1.22795117;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text3935"
+         y="210.05858"
+         x="230.78038"
+         style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+         xml:space="preserve"><tspan
+           style="text-align:center;text-anchor:middle"
+           id="tspan3943"
+           y="210.05858"
+           x="230.78038"
+           sodipodi:role="line">Queue</tspan><tspan
+           style="text-align:center;text-anchor:middle"
+           id="tspan3947"
+           y="250.05858"
+           x="230.78038"
+           sodipodi:role="line">Populator</tspan></text>
+    </g>
+    <g
+       id="g3992"
+       transform="translate(-355.16886,50.534258)"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360">
+      <rect
+         y="282.73993"
+         x="376.39581"
+         height="83.614716"
+         width="207.86346"
+         id="rect3929-0"
+         style="fill:#f6ffd5;fill-opacity:1;stroke:#000000;stroke-width:1.22795117;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text3935-5"
+         y="313.09415"
+         x="478.77286"
+         style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+         xml:space="preserve"><tspan
+           style="text-align:center;text-anchor:middle"
+           id="tspan3943-2"
+           y="313.09415"
+           x="478.77286"
+           sodipodi:role="line">Queue</tspan><tspan
+           style="text-align:center;text-anchor:middle"
+           id="tspan3947-1"
+           y="353.09415"
+           x="478.77286"
+           sodipodi:role="line">Processor</tspan></text>
+    </g>
+    <g
+       sodipodi:type="inkscape:box3d"
+       style="fill:#f6ffd5;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       id="g3978"
+       inkscape:perspectiveID="#perspective3976"
+       inkscape:corner0="0.10602996 : 0.4844502 : 0 : 1"
+       inkscape:corner7="-0.081526246 : 0.42969 : 0.25 : 1"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360">
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path3990"
+         style="fill:#e9e9ff;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="11"
+         d="m 369.76443,312.04772 66.05908,-36.58315 0,46.86472 -66.05908,30.10116 z" />
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path3980"
+         style="fill:#353564;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="6"
+         d="m 294.59764,260.53177 0,49.51059 75.16679,42.38809 0,-40.38273 z" />
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path3982"
+         style="fill:#4d4d9f;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="5"
+         d="m 294.59764,260.53177 68.69037,-57.06052 72.5355,71.99332 -66.05908,36.58315 z" />
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path3988"
+         style="fill:#afafde;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="13"
+         d="m 294.59764,310.04236 68.69037,-46.95024 72.5355,59.23717 -66.05908,30.10116 z" />
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path3986"
+         style="fill:#d7d7ff;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="14"
+         d="m 363.28801,203.47125 0,59.62087 72.5355,59.23717 0,-46.86472 z" />
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path3984"
+         style="fill:#8686bf;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="3"
+         d="m 294.59764,260.53177 68.69037,-57.06052 0,59.62087 -68.69037,46.95024 z" />
+    </g>
+    <text
+       xml:space="preserve"
+       style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#f9f9f9;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+       x="362.8483"
+       y="304.65784"
+       id="text4018"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360"><tspan
+         sodipodi:role="line"
+         x="362.8483"
+         y="304.65784"
+         style="font-size:16px;text-align:center;text-anchor:middle;fill:#f9f9f9"
+         id="tspan6811">Queue</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.33431208px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow2Lend);display:inline"
+       d="m 179.4335,171.93528 -24.25108,33.76907"
+       id="path4024-6-7"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-end="#g4012"
+       inkscape:connection-end-point="d4"
+       inkscape:connection-start="#g5398"
+       inkscape:connection-start-point="d4"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:1, 4;stroke-dashoffset:0;marker-end:url(#Arrow2Lend-1);display:inline"
+       d="m 229.09041,260.69049 65.50723,8.30647"
+       id="path4612"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-end="#g3978"
+       inkscape:connection-end-point="d4"
+       inkscape:connection-start="#g4012"
+       inkscape:connection-start-point="d4"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:1, 4;stroke-dashoffset:0;marker-start:url(#Arrow1Lstart);marker-end:url(#Arrow2Lend-1);display:inline"
+       d="m 294.59764,306.52252 -66.11492,26.75167"
+       id="path4802"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g3978"
+       inkscape:connection-start-point="d4"
+       inkscape:connection-end="#g3992"
+       inkscape:connection-end-point="d4"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+    <rect
+       style="fill:#e5ffd5;fill-opacity:1;stroke:#000000;stroke-width:0.87364489000000001;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:10.48373864000000033, 10.48373864000000033;stroke-dashoffset:0"
+       id="rect2985-4"
+       width="374.89301"
+       height="80.93856"
+       x="175.45079"
+       y="447.47018"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+    <text
+       xml:space="preserve"
+       style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+       x="259.85431"
+       y="471.35315"
+       id="text2987-2"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360"><tspan
+         sodipodi:role="line"
+         id="tspan2989-3"
+         x="259.85431"
+         y="471.35315"
+         style="font-size:18px">Notification Processors</tspan></text>
+    <g
+       id="g5304"
+       transform="translate(89.145954,-15.808377)"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360">
+      <g
+         id="g5301">
+        <rect
+           style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-opacity:1"
+           id="rect2991-0"
+           width="108.5914"
+           height="39.39595"
+           x="101.6466"
+           y="496.27322" />
+      </g>
+      <text
+         sodipodi:linespacing="125%"
+         id="text2995-7"
+         y="519.28174"
+         x="122.50578"
+         style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+         xml:space="preserve"><tspan
+           style="font-size:12px"
+           y="519.28174"
+           x="122.50578"
+           id="tspan2997-40"
+           sodipodi:role="line">Worker 1</tspan></text>
+      <g
+         id="g5296">
+        <rect
+           style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-opacity:1"
+           id="rect2991-6-1"
+           width="108.5914"
+           height="39.39595"
+           x="220.08699"
+           y="496.27322" />
+        <text
+           xml:space="preserve"
+           style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+           x="247.90417"
+           y="518.27155"
+           id="text2995-5-4"
+           sodipodi:linespacing="125%"><tspan
+             sodipodi:role="line"
+             id="tspan2997-4-2"
+             x="247.90417"
+             y="518.27155"
+             style="font-size:12px">Worker 2</tspan></text>
+      </g>
+      <g
+         id="g5288">
+        <rect
+           style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-opacity:1"
+           id="rect2991-6-8-4"
+           width="108.5914"
+           height="39.39595"
+           x="337.26468"
+           y="496.27322" />
+        <text
+           xml:space="preserve"
+           style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+           x="364.39923"
+           y="519.28174"
+           id="text2995-5-5-3"
+           sodipodi:linespacing="125%"><tspan
+             sodipodi:role="line"
+             id="tspan2997-4-7-6"
+             x="364.39923"
+             y="519.28174"
+             style="font-size:12px">Worker N</tspan></text>
+      </g>
+    </g>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.05364943;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:1.05364943, 4.2145977;stroke-dashoffset:0;marker-start:url(#Arrow1Lstart);marker-end:url(#Arrow2Lend-1);display:inline"
+       d="m 364.42327,349.41846 -1.08016,98.05172"
+       id="path5322"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-end="#rect2985-4"
+       inkscape:connection-end-point="d4"
+       inkscape:connection-start-point="d4"
+       inkscape:connection-start="#g3978"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow2Lend-1)"
+       d="m 213.22714,416.8889 64.42039,30.58128"
+       id="path5647"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g3992"
+       inkscape:connection-start-point="d4"
+       inkscape:connection-end="#rect2985-4"
+       inkscape:connection-end-point="d4"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:none;marker-end:url(#Arrow2Lend-1)"
+       d="m 125.15868,289.31906 0,43.95513"
+       id="path6033"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g4012"
+       inkscape:connection-start-point="d4"
+       inkscape:connection-end="#g3992"
+       inkscape:connection-end-point="d4"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+    <g
+       id="g6716"
+       transform="translate(-299.08954,-17.67767)"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360">
+      <rect
+         y="564.68787"
+         x="324.77713"
+         height="51.56271"
+         width="283.73141"
+         id="rect2985-4-9"
+         style="fill:#e5ffd5;fill-opacity:1;stroke:#000000;stroke-width:0.60663176;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:7.27958125, 7.27958125;stroke-dashoffset:0" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text2987-2-5"
+         y="583.633"
+         x="403.67017"
+         style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+         xml:space="preserve"><tspan
+           style="font-size:14px"
+           y="583.633"
+           x="403.67017"
+           id="tspan2989-3-9"
+           sodipodi:role="line">IMAP Connections</tspan></text>
+      <g
+         transform="translate(247.24006,0)"
+         id="g6596">
+        <g
+           id="g6580"
+           transform="translate(-1.4096498e-5,0)">
+          <rect
+             y="592.09808"
+             x="270.36673"
+             height="16.260584"
+             width="83.670303"
+             id="rect2991-6-8-4-9"
+             style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-width:0.56393665;stroke-opacity:1" />
+          <text
+             sodipodi:linespacing="125%"
+             id="text2995-5-5-3-9"
+             y="604.32465"
+             x="291.13156"
+             style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+             xml:space="preserve"><tspan
+               style="font-size:12px"
+               y="604.32465"
+               x="291.13156"
+               id="tspan2997-4-7-6-6"
+               sodipodi:role="line">IMAP N</tspan></text>
+        </g>
+        <g
+           id="g6590"
+           transform="translate(-3.0545063e-6,0)">
+          <g
+             transform="translate(27.142857,71.071429)"
+             id="g6564">
+            <rect
+               style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-width:0.56393665;stroke-opacity:1"
+               id="rect2991-6-8-4-9-2"
+               width="83.670303"
+               height="16.260584"
+               x="57.625671"
+               y="521.60132" />
+            <text
+               xml:space="preserve"
+               style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+               x="79.026253"
+               y="533.82788"
+               id="text2995-5-5-3-9-2"
+               sodipodi:linespacing="125%"><tspan
+                 sodipodi:role="line"
+                 id="tspan2997-4-7-6-6-6"
+                 x="79.026253"
+                 y="533.82788"
+                 style="font-size:12px">IMAP 1</tspan></text>
+          </g>
+        </g>
+        <g
+           id="g6585">
+          <rect
+             y="592.80328"
+             x="177.56761"
+             height="16.260584"
+             width="83.670303"
+             id="rect2991-6-8-4-9-29"
+             style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-width:0.56393665;stroke-opacity:1" />
+          <text
+             sodipodi:linespacing="125%"
+             id="text2995-5-5-3-9-0"
+             y="605.02985"
+             x="199.28682"
+             style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+             xml:space="preserve"><tspan
+               style="font-size:12px"
+               y="605.02985"
+               x="199.28682"
+               id="tspan2997-4-7-6-6-4"
+               sodipodi:role="line">IMAP 2</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g
+       id="g6735"
+       transform="translate(115.1777,-89.344601)"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360">
+      <rect
+         y="636.3548"
+         x="324.16736"
+         height="51.56271"
+         width="283.73141"
+         id="rect2985-4-9-4"
+         style="fill:#e5ffd5;fill-opacity:1;stroke:#000000;stroke-width:0.60663176;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:7.27958125, 7.27958125;stroke-dashoffset:0" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text2987-2-5-4"
+         y="655.29993"
+         x="402.00769"
+         style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+         xml:space="preserve"><tspan
+           style="font-size:14px"
+           y="655.29993"
+           x="402.00769"
+           id="tspan2989-3-9-9"
+           sodipodi:role="line">LDAP Connections</tspan></text>
+      <g
+         transform="translate(246.63029,71.666952)"
+         id="g6596-6">
+        <g
+           id="g6580-9"
+           transform="translate(-1.4096498e-5,0)">
+          <rect
+             y="592.09808"
+             x="270.36673"
+             height="16.260584"
+             width="83.670303"
+             id="rect2991-6-8-4-9-5"
+             style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-width:0.56393665;stroke-opacity:1" />
+          <text
+             sodipodi:linespacing="125%"
+             id="text2995-5-5-3-9-1"
+             y="604.32465"
+             x="291.13156"
+             style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+             xml:space="preserve"><tspan
+               style="font-size:12px"
+               y="604.32465"
+               x="291.13156"
+               id="tspan2997-4-7-6-6-7"
+               sodipodi:role="line">LDAP N</tspan></text>
+        </g>
+        <g
+           id="g6590-7"
+           transform="translate(-3.0545063e-6,0)">
+          <g
+             transform="translate(27.142857,71.071429)"
+             id="g6564-9">
+            <rect
+               style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-width:0.56393665;stroke-opacity:1"
+               id="rect2991-6-8-4-9-2-6"
+               width="83.670303"
+               height="16.260584"
+               x="57.625671"
+               y="521.60132" />
+            <text
+               xml:space="preserve"
+               style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+               x="79.026253"
+               y="533.82788"
+               id="text2995-5-5-3-9-2-2"
+               sodipodi:linespacing="125%"><tspan
+                 sodipodi:role="line"
+                 id="tspan2997-4-7-6-6-6-5"
+                 x="79.026253"
+                 y="533.82788"
+                 style="font-size:12px">LDAP 1</tspan></text>
+          </g>
+        </g>
+        <g
+           id="g6585-2">
+          <rect
+             y="592.80328"
+             x="177.56761"
+             height="16.260584"
+             width="83.670303"
+             id="rect2991-6-8-4-9-29-9"
+             style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-width:0.56393665;stroke-opacity:1" />
+          <text
+             sodipodi:linespacing="125%"
+             id="text2995-5-5-3-9-0-1"
+             y="605.02985"
+             x="199.28682"
+             style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+             xml:space="preserve"><tspan
+               style="font-size:12px"
+               y="605.02985"
+               x="199.28682"
+               id="tspan2997-4-7-6-6-4-6"
+               sodipodi:role="line">LDAP 2</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g
+       id="g6754"
+       transform="translate(-101.43912,-95.296974)"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360">
+      <rect
+         y="706.3548"
+         x="322.16736"
+         height="51.56271"
+         width="283.73141"
+         id="rect2985-4-9-5"
+         style="fill:#e5ffd5;fill-opacity:1;stroke:#000000;stroke-width:0.60663176;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:7.27958125, 7.27958125;stroke-dashoffset:0" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text2987-2-5-5"
+         y="725.29993"
+         x="403.0155"
+         style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+         xml:space="preserve"><tspan
+           style="font-size:14px"
+           y="725.29993"
+           x="403.0155"
+           id="tspan2989-3-9-1"
+           sodipodi:role="line">Riak Connections</tspan></text>
+      <g
+         transform="translate(244.63029,141.66695)"
+         id="g6596-9">
+        <g
+           id="g6580-4"
+           transform="translate(-1.4096498e-5,0)">
+          <rect
+             y="592.09808"
+             x="270.36673"
+             height="16.260584"
+             width="83.670303"
+             id="rect2991-6-8-4-9-25"
+             style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-width:0.56393665;stroke-opacity:1" />
+          <text
+             sodipodi:linespacing="125%"
+             id="text2995-5-5-3-9-8"
+             y="604.32465"
+             x="291.13156"
+             style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+             xml:space="preserve"><tspan
+               style="font-size:12px"
+               y="604.32465"
+               x="291.13156"
+               id="tspan2997-4-7-6-6-44"
+               sodipodi:role="line">Riak N</tspan></text>
+        </g>
+        <g
+           id="g6590-2"
+           transform="translate(-3.0545063e-6,0)">
+          <g
+             transform="translate(27.142857,71.071429)"
+             id="g6564-6">
+            <rect
+               style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-width:0.56393665;stroke-opacity:1"
+               id="rect2991-6-8-4-9-2-67"
+               width="83.670303"
+               height="16.260584"
+               x="57.625671"
+               y="521.60132" />
+            <text
+               xml:space="preserve"
+               style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+               x="79.026253"
+               y="533.82788"
+               id="text2995-5-5-3-9-2-0"
+               sodipodi:linespacing="125%"><tspan
+                 sodipodi:role="line"
+                 id="tspan2997-4-7-6-6-6-0"
+                 x="79.026253"
+                 y="533.82788"
+                 style="font-size:12px">Riak 1</tspan></text>
+          </g>
+        </g>
+        <g
+           id="g6585-8">
+          <rect
+             y="592.80328"
+             x="177.56761"
+             height="16.260584"
+             width="83.670303"
+             id="rect2991-6-8-4-9-29-8"
+             style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-width:0.56393665;stroke-opacity:1" />
+          <text
+             sodipodi:linespacing="125%"
+             id="text2995-5-5-3-9-0-2"
+             y="605.02985"
+             x="199.28682"
+             style="font-size:32px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+             xml:space="preserve"><tspan
+               style="font-size:12px"
+               y="605.02985"
+               x="199.28682"
+               id="tspan2997-4-7-6-6-4-3"
+               sodipodi:role="line">RIak 2</tspan></text>
+        </g>
+      </g>
+    </g>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#Arrow1Lstart);marker-end:url(#Arrow2Lend-1)"
+       d="M 267.18891,528.40874 224.36519,547.0102"
+       id="path6779"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#rect2985-4"
+       inkscape:connection-start-point="d4"
+       inkscape:connection-end="#g6716"
+       inkscape:connection-end-point="d4"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#Arrow1Lstart);marker-end:url(#Arrow2Lend-1)"
+       d="m 443.16847,528.40874 47.85914,18.60146"
+       id="path6781"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#rect2985-4"
+       inkscape:connection-start-point="d4"
+       inkscape:connection-end="#g6735"
+       inkscape:connection-end-point="d4"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#Arrow1Lstart);marker-end:url(#Arrow2Lend-1)"
+       d="m 350.21927,528.40874 -0.16838,82.64908"
+       id="path6783"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#rect2985-4"
+       inkscape:connection-start-point="d4"
+       inkscape:connection-end="#g6754"
+       inkscape:connection-end-point="d4"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+    <g
+       sodipodi:type="inkscape:box3d"
+       style="fill:#e5ffd5;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:1, 4;stroke-dashoffset:0"
+       id="g6785"
+       inkscape:perspectiveID="#perspective6815"
+       inkscape:corner0="0.43105433 : -0.031688739 : 0 : 1"
+       inkscape:corner7="0.15143643 : -0.13429085 : 0.25 : 1"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360">
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path6795"
+         style="fill:#afafde;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="13"
+         d="m 294.19805,940.76957 63.13453,43.03585 75.09773,-39.29055 -66.23678,-30.10033 z" />
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path6787"
+         style="fill:#353564;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="6"
+         d="m 294.19805,882.05551 0,58.71406 71.99548,-26.35503 0,-49.98233 z" />
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path6797"
+         style="fill:#e9e9ff;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="11"
+         d="m 366.19353,864.43221 66.23678,20.12774 0,59.95492 -66.23678,-30.10033 z" />
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path6789"
+         style="fill:#4d4d9f;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="5"
+         d="m 294.19805,882.05551 63.13453,28.77757 75.09773,-26.27313 -66.23678,-20.12774 z" />
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path6793"
+         style="fill:#d7d7ff;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="14"
+         d="m 357.33258,910.83308 0,72.97234 75.09773,-39.29055 0,-59.95492 z" />
+      <path
+         sodipodi:type="inkscape:box3dside"
+         id="path6791"
+         style="fill:#8686bf;fill-rule:evenodd;stroke:none"
+         inkscape:box3dsidetype="3"
+         d="m 294.19805,882.05551 63.13453,28.77757 0,72.97234 -63.13453,-43.03585 z" />
+    </g>
+    <text
+       xml:space="preserve"
+       style="font-size:32.57792664px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Oxygen;-inkscape-font-specification:Oxygen"
+       x="285.5209"
+       y="768.13654"
+       id="text6799"
+       sodipodi:linespacing="125%"
+       transform="scale(1.1050426,0.90494248)"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360"><tspan
+         sodipodi:role="line"
+         id="tspan6801"
+         x="285.5209"
+         y="768.13654" /><tspan
+         sodipodi:role="line"
+         x="285.5209"
+         y="798.03491"
+         id="tspan6805"
+         style="font-size:21.71861839px">Storage</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:1, 4;stroke-dashoffset:0;marker-end:url(#Arrow2Lend-1)"
+       d="m 362.95596,611.05782 0.35822,-25.51043"
+       id="path6817"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g6754"
+       inkscape:connection-start-point="d4"
+       inkscape:connection-end="#g6785"
+       inkscape:connection-end-point="d4"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:1, 4;stroke-dashoffset:0;marker-end:url(#Arrow2Lend-1)"
+       d="m 362.75131,662.62053 0.20338,33.31879"
+       id="path7207"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g6754"
+       inkscape:connection-start-point="d4"
+       inkscape:connection-end="#g6785"
+       inkscape:connection-end-point="d4"
+       inkscape:export-filename="/home/aseigo/src/pim/egara/docs/egara_architecture.png"
+       inkscape:export-xdpi="360"
+       inkscape:export-ydpi="360" />
+  </g>
+</svg>
