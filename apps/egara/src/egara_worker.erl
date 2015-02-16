@@ -59,7 +59,7 @@ process_as_many_events_as_possible(0) ->
 process_as_many_events_as_possible(N) ->
     Key = egara_notification_store:assign_next(self()),
     %%lager:info("~p is starting to process... ~p", [self(), Key]),
-    case notification_assigned(Key) of
+    case notification_assigned(Status) of
         again -> process_as_many_events_as_possible(N - 1);
         _ -> ok
     end.
@@ -69,9 +69,20 @@ notification_assigned(notfound) ->
     poolboy:checkin(egara_notification_workers, self()),
     egara_notifications_processor:queue_drained(),
     done;
-notification_assigned(Key) ->
+notification_assigned({ Key, Notification }) ->
     %%TODO actual processing
-    egara_notification_store:remove(Key),
+    case poolboy:checkout(egara_storage_pool, false, 10) of
+         Storage when is_pid(Storage) ->
+             %%lager:info("Storing using ~p", [Storage]),
+             egara_storage:store_notification(Storage, Key, Notification),
+             egara_notification_queue:remove(Key),
+             poolboy:checkin(egara_storage_pool, Storage),
+             ok;
+         _ -> 
+            lager:warning("Unable to get storage!"),
+            egara_notification_queue:release(Key, self()),
+            no_storage
+    end,
     %%lager:info("Done with ~p", [Key]),
     again.
 
