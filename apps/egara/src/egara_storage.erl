@@ -21,7 +21,9 @@
 
 %% API
 -export([ start_link/1,
-          store_notification/3
+          store_notification/3,
+          store_userdata/3,
+          fetch_userdata_for_login/2
         ]).
 
 %% gen_server callbacks
@@ -33,19 +35,51 @@
 
 %% public API
 start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
-store_notification(Pid, Key, Notification) -> gen_server:call(Pid, { store_notification, Key, Notification }).
+store_notification(Pid, Key, Notification) when is_binary(Key) -> gen_server:call(Pid, { store_notification, Key, Notification }).
+store_userdata(Pid, UserLogin, UserData) -> gen_server:call(Pid, { store_userdata, UserLogin, UserData }).
+fetch_userdata_for_login(Pid, UserLogin) -> gen_server:call(Pid, { fetch_userdata, UserLogin }).
 
 
 %% gen_server API
 init(_Args) ->
+    erlang:process_flag(trap_exit, true),
     { ok, #state {} }.
 
-handle_call({ store_notification, Key, Notification }, _From, State) when is_binary(Key) ->
+handle_call({ store_notification, Key, Notification }, _From, State) ->
     Json = jsx:encode(Notification),
-    Storable = riakc_obj:new("notifications", Key, Json),
+    Storable = riakc_obj:new(<<"notifications">>, Key, Json),
     NewState = ensure_connected(State),
-    ok = riakc_pb_socket:put(NewState#state.riak_connection, Storable),
-    { reply, ok, NewState };
+    case riakc_pb_socket:put(NewState#state.riak_connection, Storable) of
+        ok -> { reply, ok, NewState };
+        Rv -> lager:warning("Failed to put notification: ~p", [Rv]), { reply, error, NewState }
+    end;
+
+handle_call({ store_userdata, UserLogin, UserData }, From, State) when is_list(UserLogin) ->
+    handle_call({ store_userdata, erlang:list_to_binary(UserLogin), UserData }, From, State);
+handle_call({ store_userdata, UserLogin, UserData }, _From, State) ->
+    UserId = proplists:get_value(<<"id">>, UserData, <<"">>),
+    TS = erlang:list_to_binary(egara_utils:current_timestamp()),
+    Key = <<UserLogin, "::", UserId, "::", TS>>,
+    Json = jsx:encode(UserData ++ [ { <<"user">>, UserLogin } ]),
+    Storable = riakc_obj:new(<<"users">>, Key, Json),
+    NewState = ensure_connected(State),
+    Rv = riakc_pb_socket:put(NewState#state.riak_connection, Storable),
+    { reply, Rv, NewState };
+
+handle_call({ fetch_userdata, UserLogin } , From, State) when is_list(UserLogin) ->
+    handle_call({ store_userdata, erlang:list_to_binary(UserLogin) }, From, State);
+handle_call({ fetch_userdata, UserLogin }, _From, State) ->
+    NewState = ensure_connected(State),
+    { ok, UserData } = riakc_pb_socket:mapred(NewState#state.riak_connection,
+                                              { <<"users">>, [ [<<"starts_with">>, <<UserLogin, "::">>], [<<"ends_with">>, <<"current">> ] ] },
+                                              [ { map, { qfun, fun(Value, _KeyData, _Arg) -> [ riak_object:get_value(Value) ] end }, none, false } ] ),
+    case UserData of
+        [] -> Response = notfound;
+        [Current|_Tail] -> Response = try jsx:decode(Current) of Term -> Term
+                                        catch error:_ -> ok end;
+        _ -> Response = notfound
+    end,
+    { reply, Response, NewState };
 
 handle_call(_Request, _From, State) ->
     { reply, ok, State }.
@@ -53,6 +87,12 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     { noreply, State }.
 
+handle_info({'EXIT', From, _Reason}, State) ->
+    %% look out for our riak connection dropping
+    if From =:= State#state.riak_connection -> lager:warning("Just lost our riak connection..."),
+                                               { noreply, State#state{ riak_connection = none } };
+       true -> { noreply, State }
+    end;
 handle_info(_Info, State) ->
     { noreply, State }.
 
@@ -65,10 +105,14 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% private API
 ensure_connected(#state{ riak_connection = none } = State) ->
-    { ok, Host } = application:get_env(egara, riak_host, "127.0.0.1"),
-    { ok, Port } = application:get_env(egara, riak_port, 8087),
-    { ok, Connection } = riakc_pb_socket:start_link(Host, Port),
-    State#state{ riak_connection = Connection };
-ensure_connected(#state{} = State) ->
+    Host = application:get_env(egara, riak_host, "127.0.0.1"),
+    Port = application:get_env(egara, riak_port, 8087),
+    %%lager:info("Going to try with ... ~p ~p ~p", [Host, Port, State#state.riak_connection]),
+    case riakc_pb_socket:start_link(Host, Port) of
+        { ok, Connection } -> State#state{ riak_connection = Connection };
+        Actual -> lager:warning("COULD NOT CONNECT TO RIAK! Reason: ~p", [Actual]), State
+    end;
+ensure_connected(State) ->
     State.
+
 

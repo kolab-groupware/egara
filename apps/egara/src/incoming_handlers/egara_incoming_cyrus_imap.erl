@@ -19,7 +19,7 @@
 -behavior(egara_incoming_handler).
 
 %% API
--export([ start_reception/0, launchRecvCyrusNotification/1, recvCyrusNotification/2 ]).
+-export([ start_reception/0, launchRecvCyrusNotification/1, recvCyrusNotification/3 ]).
 
 -include_lib("kernel/include/file.hrl").
 
@@ -78,24 +78,35 @@ cherryPickNotification(Terms) ->
 
 
 launchRecvCyrusNotification(Socket) ->
-    { ok, spawn_link(?MODULE, recvCyrusNotification, [Socket, ?MIN_SLEEP_MS])  }.
+    % this mapping gets passed to proplists:expand to translate/normalize event names
+    EventMappings = [
+                     {
+                       { <<"event">>, <<"vnd.cmu.MessageCopy">> },
+                       { <<"event">>, <<"MessageCopy">>}
+                     },
+                     {
+                       { <<"event">>, <<"vnd.cmu.MessageMove">> },
+                       { <<"event">>, <<"MessageMove">>}
+                     }
+                    ],
+    { ok, spawn_link(?MODULE, recvCyrusNotification, [Socket, EventMappings, ?MIN_SLEEP_MS])  }.
 
-recvCyrusNotification(Socket, SleepMs) ->
+recvCyrusNotification(Socket, EventMappings, SleepMs) ->
     case procket:recvfrom(Socket, 16#FFFF) of
         { error, eagain } ->
             NewSleepMs = min(SleepMs * 2, ?MAX_SLEEP_MS),
             timer:sleep(NewSleepMs),
-            recvCyrusNotification(Socket, NewSleepMs);
+            recvCyrusNotification(Socket, EventMappings, NewSleepMs);
         { ok, Buf } ->
             Components = binary:split(Buf, <<"\0">>, [global]),
             %%lager:info("~p", [Components]),
             Json = cherryPickNotification(Components),
             try jsx:decode(Json) of
-                Term -> egara_notifications_receiver:notification_received(Term)
+                Term -> egara_notifications_receiver:notification_received(proplists:expand(EventMappings, Term))
             catch
                 error:_ -> ok
             end,
 
-            recvCyrusNotification(Socket, ?MIN_SLEEP_MS)
+            recvCyrusNotification(Socket, EventMappings, ?MIN_SLEEP_MS)
     end.
 

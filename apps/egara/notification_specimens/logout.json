@@ -1,1 +1,1 @@
-{ 'event': 'Logout', 'user': 'john.doe@example.org', 'vnd.cmu.sessionId': 'kolab-sess-test-12345', 'clientIP': '::1' }
+{"event":"Logout","timestamp":"2015-02-23T14:47:36.183+01:00","service":"imap","serverDomain":"::1","serverPort":143,"clientIP":"::1","clientPort":46461,"uri":"imap://kolab.example.org","pid":7629,"user":"john.doe@example.org","vnd.cmu.sessionId":"kolab.example.org-7629-1424699256-1-3981462903180119079"}

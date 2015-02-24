@@ -1,0 +1,1 @@
+{"event":"MailboxUnSubscribe","timestamp":"2015-02-23T18:37:19.482+01:00","service":"imap","uri":"imap://john.doe@example.org@kolab.example.org/Testfolder_renamed","pid":3003,"user":"john.doe@example.org","vnd.cmu.sessionId":"kolab.example.org-3003-1424713039-1-2806700531460584176"}

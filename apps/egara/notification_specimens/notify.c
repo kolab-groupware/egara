@@ -165,7 +165,7 @@ EXPORTED void notify(const char *method,
 	strlcat(sun_data.sun_path,
 		FNAME_NOTIFY_SOCK, sizeof(sun_data.sun_path));
     }
-    printf("SOCKET PATH IS %s\n", sun_data.sun_path);
+    //printf("SOCKET PATH IS %s\n", sun_data.sun_path);
 
     /*
      * build request of the form:
@@ -220,7 +220,7 @@ const char *mailbox = "donotusemailbox";
 int nopt = 2;
 const char *options[] = { "donotuseopt1", "donotuseopt2" };
 
-void send_notification(char *msg, int msglen)
+void send_notification(char *msg, int msglen, const char *file)
 {
     if (msg) {
         if (msg[msglen - 1] == '\n') {
@@ -229,14 +229,16 @@ void send_notification(char *msg, int msglen)
             msg[msglen] = '\0';
         }
         //printf("%i \"%s\"\n", msglen, msg);
+        printf("Sending a message from file %s\n", file);
         notify(method, class, priority, user, mailbox, nopt, options, msg);
     }
 }
 
 int main(int argc, const char *argv[])
 {
-    char *msgline = NULL;
-    ssize_t linelen = 0;
+    ssize_t msglinelen = 4192;
+    char *msgline = malloc(msglinelen);
+    ssize_t linelen = 4192;
     char *msg = NULL;
     ssize_t msglen = 0;
     int argn;
@@ -248,16 +250,18 @@ int main(int argc, const char *argv[])
     }
 
     for (argn = 1; argn < argc; ++argn) {
-        fd = fopen(argv[argn], "r");
+        const char *file = argv[argn];
+        fd = fopen(file, "r");
         if (!fd) {
-            printf("Could not open %s\n", argv[argn]);
+            printf("Could not open %s\n", file);
             continue;
         }
 
+        printf("\nReading file %s\n", file);
         //rewind(fd);
-        while ((linelen = getline(&msgline, &linelen, fd)) > 0) {
+        while ((linelen = getline(&msgline, &msglinelen, fd)) > 0) {
             if (msgline[0] == '{' && msg) { // hack for multiline files. meh.
-                send_notification(msg, msglen);
+                send_notification(msg, msglen, file);
                 free(msg);
                 msg = NULL;
                 msglen = 0;
@@ -266,19 +270,21 @@ int main(int argc, const char *argv[])
             msg = realloc(msg, linelen + msglen);
             memcpy(msg + msglen, msgline, linelen);
             msglen = linelen + msglen;
-            free(msgline);
-            msgline = NULL;
         }
 
         fclose(fd);
         fd = NULL;
 
-        send_notification(msg, msglen);
-        free(msg);
-        msg = NULL;
-        msglen = 0;
+        if (msg) {
+            send_notification(msg, msglen, file);
+            free(msg);
+            msg = NULL;
+            msglen = 0;
+        }
     }
+
+    free(msgline);
 }
 
-// gcc notify.c -o notifier
+// gcc notify.c -o ~/bin/egara_json_notifier
 

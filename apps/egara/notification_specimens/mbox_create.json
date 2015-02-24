@@ -1,1 +1,1 @@
-{ 'event': 'MailboxCreate', 'user': 'john.doe@example.org', 'uri': 'imap://john.doe@example.org@kolab.example.org/Calendar;UIDVALIDITY=12345' }
+{"event":"MailboxCreate","timestamp":"2015-02-23T14:55:57.621+01:00","service":"imap","mailboxID":"imap://john.doe@example.org@kolab.example.org/Testfolder;UIDVALIDITY=1424690388","uri":"imap://john.doe@example.org@kolab.example.org/Testfolder;UIDVALIDITY=1424690388","pid":7721,"user":"john.doe@example.org","vnd.cmu.sessionId":"kolab.example.org-7721-1424699757-1-18345110432907898457"}

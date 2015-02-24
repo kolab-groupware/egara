@@ -7,4 +7,3 @@ db
 log
 .*.swp
 Mnesia*
-apps/egara/notification_specimens/notifier
