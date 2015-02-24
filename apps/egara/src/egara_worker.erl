@@ -30,8 +30,11 @@
 start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
 
 init(_Args) ->
-    { ok, ImapConfig } = application:get_env(imap_events),
-    { ok, ImapConfig }.
+    %% EventMapping is a map of event types (e.g. <<"FlagsClear">>) to the type of
+    %% event (e.g. imap_mesage_event) for routing the notifications through the handler
+    EventMapping = transform_events_config_to_map(application:get_env(events_to_track)),
+    %%lager:info("We gots us ... ~p", [EventMapping]),
+    { ok, EventMapping }.
 
 handle_call(_Request, _From, State) ->
     { reply, ok, State }.
@@ -40,7 +43,7 @@ handle_cast(process_events, State) ->
     case poolboy:checkout(egara_storage_pool, false, 10) of
          Storage when is_pid(Storage) ->
              %%lager:info("Storing using ~p", [Storage]),
-            process_as_many_events_as_possible(Storage, ?BATCH_SIZE),
+            process_as_many_events_as_possible(Storage, State, ?BATCH_SIZE),
             poolboy:checkin(egara_storage_pool, Storage);
          _ -> 
             lager:warning("Unable to get storage!")
@@ -60,26 +63,63 @@ code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 %% private API
-process_as_many_events_as_possible(_Storage, 0) ->
+add_events_to_map(Type, Events, EventMap) when is_list(Events) ->
+    lists:foldl(fun(Event, Map) -> maps:put(Event, Type, Map) end, EventMap, Events);
+add_events_to_map(_Type, _Events, EventMap) ->
+    EventMap.
+
+transform_events_config_to_map({ ok, EventConfig }) ->
+    lists:foldl(fun({ Type, Events }, EventMap) -> add_events_to_map(Type, Events, EventMap) end, maps:new(), EventConfig);
+transform_events_config_to_map(_) ->
+    maps:new(). %% return an empty map .. this is going to be boring
+
+process_as_many_events_as_possible(_Storage, _EventMapping, 0) ->
     egara_notifications_processor:queue_drained(),
     ok;
-process_as_many_events_as_possible(Storage, N) ->
+process_as_many_events_as_possible(Storage, EventMapping, N) ->
     Status = egara_notification_queue:assign_next(self()),
     %%lager:info("~p is starting to process... ~p", [self(), Key]),
-    case notification_assigned(Storage, Status) of
-        again -> process_as_many_events_as_possible(Storage, N - 1);
+    case notification_assigned(Storage, EventMapping, Status) of
+        again -> process_as_many_events_as_possible(Storage, EventMapping, N - 1);
         _ -> ok
     end.
 
-notification_assigned(_Storage, notfound) ->
+notification_assigned(_Storage, _EventMapping, notfound) ->
     %%lager:info("Checking in ~p", [self()]),
     poolboy:checkin(egara_notification_workers, self()),
     egara_notifications_processor:queue_drained(),
     done;
-notification_assigned(Storage, { Key, Notification }) ->
-    %%TODO actual processing
-    %%lager:info("Done with ~p", [Key]),
-    egara_storage:store_notification(Storage, Key, Notification),
+notification_assigned(Storage, EventMapping, { Key, Notification } ) ->
+    EventType = proplists:get_value(<<"event">>, Notification),
+    EventCategory = maps:find(EventType, EventMapping),
+    %%lager:info("Type is ~p which maps to ~p", [EventType, EventCategory]),
+    process_notification_by_category(Storage, Notification, EventCategory),
     egara_notification_queue:remove(Key),
+    %%lager:info("Done with ~p", [Key]),
     again.
+
+process_notification_by_category(Storage, Notification, { ok, Type }) ->
+    %% this version, with the { ok, _ } tuple is called due to maps:find returning { ok, Value }
+    %% it is essentiall a forwarder to other impls below
+    process_notification_by_category(Storage, Notification, Type);
+process_notification_by_category(Storage, Notification, imap_message_event) ->
+    lager:info("storing an imap_message_event"),
+    Key = "TODO", %% TODO!
+    egara_storage:store_notification(Storage, Key, Notification);
+process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
+    lager:info("storing an imap_mailbox_event"),
+    Key = "TODO", %% TODO!
+    egara_storage:store_notification(Storage, Key, Notification);
+process_notification_by_category(Storage, Notification, imap_session_event) ->
+    lager:info("storing an imap_session_event"),
+    Key = "TODO", %% TODO!
+    egara_storage:store_notification(Storage, Key, Notification);
+process_notification_by_category(Storage, Notification, imap_quota_event) ->
+    lager:info("storing an imap_quota_event"),
+    Key = "TODO", %% TODO!
+    egara_storage:store_notification(Storage, Key, Notification);
+process_notification_by_category(_Storage, _Notification, _) ->
+    %% in here we have a notification we don't recognize, probably because it was not configured
+    %% to be watched for
+    ignoring.
 
