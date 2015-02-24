@@ -94,7 +94,12 @@ notification_assigned(Storage, EventMapping, { Key, Notification } ) ->
     EventCategory = maps:find(EventType, EventMapping),
     %%lager:info("Type is ~p which maps to ~p", [EventType, EventCategory]),
     case process_notification_by_category(Storage, Notification, EventCategory) of
-        ok -> %%lager:info("Done with ~p", [Key]),
+        ok -> 
+              %%lager:info("Done with ~p", [Key]),
+              egara_notification_queue:remove(Key),
+              again;
+        ignoring ->
+              %%lager:info("Ignoring ~p", [Key]),
               egara_notification_queue:remove(Key),
               again;
         _ -> error
