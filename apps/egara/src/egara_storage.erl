@@ -53,6 +53,12 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     { noreply, State }.
 
+handle_info({'EXIT', From, _Reason}, State) ->
+    %% look out for our riak connection dropping
+    if From =:= State#state.riak_connection -> lager:warning("Just lost our riak connection..."),
+                                               { noreply, State#state{ riak_connection = none } };
+       true -> { noreply, State }
+    end;
 handle_info(_Info, State) ->
     { noreply, State }.
 
