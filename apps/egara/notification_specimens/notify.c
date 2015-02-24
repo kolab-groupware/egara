@@ -286,5 +286,5 @@ int main(int argc, const char *argv[])
     free(msgline);
 }
 
-// gcc notify.c -o notifier
+// gcc notify.c -o ~/bin/egara_json_notifier
 
