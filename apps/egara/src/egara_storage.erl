@@ -71,10 +71,14 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% private API
 ensure_connected(#state{ riak_connection = none } = State) ->
-    { ok, Host } = application:get_env(egara, riak_host, "127.0.0.1"),
-    { ok, Port } = application:get_env(egara, riak_port, 8087),
-    { ok, Connection } = riakc_pb_socket:start_link(Host, Port),
-    State#state{ riak_connection = Connection };
-ensure_connected(#state{} = State) ->
+    Host = application:get_env(egara, riak_host, "127.0.0.1"),
+    Port = application:get_env(egara, riak_port, 8087),
+    %%lager:info("Going to try with ... ~p ~p ~p", [Host, Port, State#state.riak_connection]),
+    case riakc_pb_socket:start_link(Host, Port) of
+        { ok, Connection } -> State#state{ riak_connection = Connection };
+        Actual -> lager:warning("COULD NOT CONNECT TO RIAK! Reason: ~p", [Actual]), State
+    end;
+ensure_connected(State) ->
     State.
+
 
