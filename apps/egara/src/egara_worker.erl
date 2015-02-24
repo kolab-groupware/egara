@@ -111,19 +111,19 @@ process_notification_by_category(Storage, Notification, { ok, Type }) ->
     NotificationWithUsername = ensure_username(Storage, Notification, proplists:get_value(<<"user">>, Notification)),
     process_notification_by_category(Storage, NotificationWithUsername, Type);
 process_notification_by_category(Storage, Notification, imap_message_event) ->
-    lager:info("storing an imap_message_event"),
+    %%lager:info("storing an imap_message_event"),
     Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
-    lager:info("storing an imap_mailbox_event"),
+    %%lager:info("storing an imap_mailbox_event"),
     Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_session_event) ->
-    lager:info("storing an imap_session_event"),
+    %%lager:info("storing an imap_session_event"),
     Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_quota_event) ->
-    lager:info("storing an imap_quota_event"),
+    %%lager:info("storing an imap_quota_event"),
     Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(_Storage, _Notification, _) ->
