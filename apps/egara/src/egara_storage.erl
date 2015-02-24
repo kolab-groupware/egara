@@ -38,6 +38,7 @@ store_notification(Pid, Key, Notification) -> gen_server:call(Pid, { store_notif
 
 %% gen_server API
 init(_Args) ->
+    erlang:process_flag(trap_exit, true),
     { ok, #state {} }.
 
 handle_call({ store_notification, Key, Notification }, _From, State) when is_binary(Key) ->
