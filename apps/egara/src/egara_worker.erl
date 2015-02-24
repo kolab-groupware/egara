@@ -93,33 +93,57 @@ notification_assigned(Storage, EventMapping, { Key, Notification } ) ->
     EventType = proplists:get_value(<<"event">>, Notification),
     EventCategory = maps:find(EventType, EventMapping),
     %%lager:info("Type is ~p which maps to ~p", [EventType, EventCategory]),
-    process_notification_by_category(Storage, Notification, EventCategory),
-    egara_notification_queue:remove(Key),
-    %%lager:info("Done with ~p", [Key]),
-    again.
+    case process_notification_by_category(Storage, Notification, EventCategory) of
+        ok -> %%lager:info("Done with ~p", [Key]),
+              egara_notification_queue:remove(Key),
+              again;
+        _ -> error
+    end.
 
 process_notification_by_category(Storage, Notification, { ok, Type }) ->
     %% this version, with the { ok, _ } tuple is called due to maps:find returning { ok, Value }
     %% it is essentiall a forwarder to other impls below
-    process_notification_by_category(Storage, Notification, Type);
+    NotificationWithUsername = ensure_username(Storage, Notification, proplists:get_value(<<"user">>, Notification)),
+    process_notification_by_category(Storage, NotificationWithUsername, Type);
 process_notification_by_category(Storage, Notification, imap_message_event) ->
     lager:info("storing an imap_message_event"),
-    Key = "TODO", %% TODO!
+    Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
     lager:info("storing an imap_mailbox_event"),
-    Key = "TODO", %% TODO!
+    Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_session_event) ->
     lager:info("storing an imap_session_event"),
-    Key = "TODO", %% TODO!
+    Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_quota_event) ->
     lager:info("storing an imap_quota_event"),
-    Key = "TODO", %% TODO!
+    Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(_Storage, _Notification, _) ->
     %% in here we have a notification we don't recognize, probably because it was not configured
     %% to be watched for
     ignoring.
 
+ensure_username(Storage, Notification, { ok, UserLogin } ) ->
+    FromStorage = egara_storage:fetch_userdata_for_login(Storage, UserLogin),
+    lager:info("Storage said ... ~p", [FromStorage]),
+    add_username_from_storage(Storage, Notification, UserLogin, FromStorage);
+ensure_username(_Storage, Notification, _) ->
+    Notification.
+
+
+add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
+    %% TODO: LDAP worker to 
+    FromLDAP = notfound,
+    add_username_from_ldap(Storage, Notification, UserLogin, FromLDAP);
+add_username_from_storage(Notification, _Storage, _UserLogin, Username) ->
+    Notification ++ [ <<"user_id">>, Username ].
+
+add_username_from_ldap(Notification, _Storage, _UserLogin, notfound) ->
+    Notification;
+add_username_from_ldap(Storage, Notification, UserLogin, UserData) ->
+    %% TODO: storage in user butcket
+    egara_storage:store_userdata(Storage, UserLogin, UserData),
+    Notification ++ [ <<"user_id">>, UserData ].
