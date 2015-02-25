@@ -131,13 +131,12 @@ process_notification_by_category(_Storage, _Notification, _) ->
     %% to be watched for
     ignoring.
 
-ensure_username(Storage, Notification, { ok, UserLogin } ) ->
+ensure_username(_Storage, Notification, undefined) ->
+    Notification;
+ensure_username(Storage, Notification, UserLogin) ->
     FromStorage = egara_storage:fetch_userdata_for_login(Storage, UserLogin),
-    lager:info("Storage said ... ~p", [FromStorage]),
-    add_username_from_storage(Storage, Notification, UserLogin, FromStorage);
-ensure_username(_Storage, Notification, _) ->
-    Notification.
-
+    %%lager:info("Storage said ... ~p", [FromStorage]),
+    add_username_from_storage(Storage, Notification, UserLogin, FromStorage).
 
 add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
     %% TODO: LDAP worker to 
