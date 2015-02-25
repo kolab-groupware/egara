@@ -59,24 +59,31 @@ handle_call({ store_userdata, UserLogin, UserData }, From, State) when is_list(U
 handle_call({ store_userdata, UserLogin, UserData }, _From, State) ->
     UserId = proplists:get_value(<<"id">>, UserData, <<"">>),
     TS = erlang:list_to_binary(egara_utils:current_timestamp()),
-    Key = <<UserLogin, "::", UserId, "::", TS>>,
+    Key = <<UserLogin, "::", TS, "::", UserId>>,
+    CurrentKey = userlogin_to_current_userdata_key(UserLogin),
     Json = jsx:encode(UserData ++ [ { <<"user">>, UserLogin } ]),
     Storable = riakc_obj:new(<<"users">>, Key, Json),
+    CurrentStorable = riakc_obj:new(<<"users">>, CurrentKey, Json),
     NewState = ensure_connected(State),
     Rv = riakc_pb_socket:put(NewState#state.riak_connection, Storable),
+    RvCurrent = riakc_pb_socket:put(NewState#state.riak_connection, CurrentStorable),
     { reply, Rv, NewState };
 
 handle_call({ fetch_userdata, UserLogin } , From, State) when is_list(UserLogin) ->
     handle_call({ store_userdata, erlang:list_to_binary(UserLogin) }, From, State);
 handle_call({ fetch_userdata, UserLogin }, _From, State) ->
     NewState = ensure_connected(State),
-    { ok, UserData } = riakc_pb_socket:mapred(NewState#state.riak_connection,
-                                              { <<"users">>, [ [<<"starts_with">>, <<UserLogin, "::">>], [<<"ends_with">>, <<"current">> ] ] },
-                                              [ { map, { qfun, fun(Value, _KeyData, _Arg) -> [ riak_object:get_value(Value) ] end }, none, false } ] ),
-    case UserData of
-        [] -> Response = notfound;
-        [Current|_Tail] -> Response = try jsx:decode(Current) of Term -> Term
-                                        catch error:_ -> ok end;
+    CurrentKey = userlogin_to_current_userdata_key(UserLogin),
+    RiakResponse = riakc_pb_socket:get(NewState#state.riak_connection, <<"users">>, CurrentKey),
+    case RiakResponse of
+        { ok, Obj } ->
+            Value = riakc:get_value(Obj),
+            Response =
+            try jsx:decode(Value) of
+                Term -> Term
+            catch
+                error:_ -> notfound
+            end;
         _ -> Response = notfound
     end,
     { reply, Response, NewState };
@@ -115,4 +122,5 @@ ensure_connected(#state{ riak_connection = none } = State) ->
 ensure_connected(State) ->
     State.
 
+userlogin_to_current_userdata_key(UserLogin) when is_binary(UserLogin) -> <<UserLogin, "::current">>.
 
