@@ -145,7 +145,7 @@ add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
 add_username_from_storage(Notification, _Storage, _UserLogin, Username) ->
     Notification ++ [ <<"user_id">>, Username ].
 
-add_username_from_ldap(Notification, _Storage, _UserLogin, notfound) ->
+add_username_from_ldap(_Storage, Notification, _UserLogin, notfound) ->
     Notification;
 add_username_from_ldap(Storage, Notification, UserLogin, UserData) ->
     %% TODO: storage in user butcket
