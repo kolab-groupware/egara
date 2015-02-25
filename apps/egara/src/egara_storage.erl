@@ -59,7 +59,7 @@ handle_call({ store_userdata, UserLogin, UserData }, From, State) when is_list(U
 handle_call({ store_userdata, UserLogin, UserData }, _From, State) ->
     UserId = proplists:get_value(<<"id">>, UserData, <<"">>),
     TS = erlang:list_to_binary(egara_utils:current_timestamp()),
-    Key = <<UserLogin, "::", TS, "::", UserId>>,
+    Key = <<UserLogin/binary, "::", TS/binary, "::", UserId/binary>>,
     CurrentKey = userlogin_to_current_userdata_key(UserLogin),
     Json = jsx:encode(UserData ++ [ { <<"user">>, UserLogin } ]),
     Storable = riakc_obj:new(<<"users">>, Key, Json),
@@ -122,5 +122,6 @@ ensure_connected(#state{ riak_connection = none } = State) ->
 ensure_connected(State) ->
     State.
 
-userlogin_to_current_userdata_key(UserLogin) when is_binary(UserLogin) -> <<UserLogin, "::current">>.
+userlogin_to_current_userdata_key(UserLogin) when is_list(UserLogin) -> userlogin_to_current_userdata_key(erlang:list_to_binary(UserLogin));
+userlogin_to_current_userdata_key(UserLogin) when is_binary(UserLogin) -> <<UserLogin/binary, "::current">>.
 
