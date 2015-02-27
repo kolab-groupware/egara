@@ -46,6 +46,7 @@ init(_Args) ->
     { ok, #state {} }.
 
 handle_call({ store_notification, Key, Notification }, _From, State) ->
+    %lager:info("----> ~p", [Notification]),
     Json = jsx:encode(Notification),
     Storable = riakc_obj:new(<<"notifications">>, Key, Json),
     NewState = ensure_connected(State),
@@ -57,16 +58,16 @@ handle_call({ store_notification, Key, Notification }, _From, State) ->
 handle_call({ store_userdata, UserLogin, UserData }, From, State) when is_list(UserLogin) ->
     handle_call({ store_userdata, erlang:list_to_binary(UserLogin), UserData }, From, State);
 handle_call({ store_userdata, UserLogin, UserData }, _From, State) ->
-    UserId = proplists:get_value(<<"id">>, UserData, <<"">>),
+    UserId = erlang:list_to_binary(proplists:get_value("id", UserData, "")),
     TS = erlang:list_to_binary(egara_utils:current_timestamp()),
     Key = <<UserLogin/binary, "::", TS/binary, "::", UserId/binary>>,
     CurrentKey = userlogin_to_current_userdata_key(UserLogin),
-    Json = jsx:encode(UserData ++ [ { <<"user">>, UserLogin } ]),
+    Json = jsx:encode([ { <<"user">>, UserLogin } | UserData ]),
     Storable = riakc_obj:new(<<"users">>, Key, Json),
     CurrentStorable = riakc_obj:new(<<"users">>, CurrentKey, Json),
     NewState = ensure_connected(State),
     Rv = riakc_pb_socket:put(NewState#state.riak_connection, Storable),
-    RvCurrent = riakc_pb_socket:put(NewState#state.riak_connection, CurrentStorable),
+    riakc_pb_socket:put(NewState#state.riak_connection, CurrentStorable),
     { reply, Rv, NewState };
 
 handle_call({ fetch_userdata, UserLogin } , From, State) when is_list(UserLogin) ->
@@ -77,7 +78,7 @@ handle_call({ fetch_userdata, UserLogin }, _From, State) ->
     RiakResponse = riakc_pb_socket:get(NewState#state.riak_connection, <<"users">>, CurrentKey),
     case RiakResponse of
         { ok, Obj } ->
-            Value = riakc:get_value(Obj),
+            Value = riakc_obj:get_value(Obj),
             Response =
             try jsx:decode(Value) of
                 Term -> Term
