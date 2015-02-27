@@ -45,7 +45,7 @@ handle_cast(process_events, State) ->
              %%lager:info("Storing using ~p", [Storage]),
             process_as_many_events_as_possible(Storage, State, ?BATCH_SIZE),
             poolboy:checkin(egara_storage_pool, Storage);
-         _ -> 
+         _ ->
             lager:warning("Unable to get storage!")
     end,
     { noreply, State };
@@ -143,15 +143,22 @@ ensure_username(_Storage, Notification, undefined) ->
     Notification;
 ensure_username(Storage, Notification, UserLogin) ->
     FromStorage = egara_storage:fetch_userdata_for_login(Storage, UserLogin),
-    %%lager:info("Storage said ... ~p", [FromStorage]),
+    lager:info("Storage said ... ~p", [FromStorage]),
     add_username_from_storage(Storage, Notification, UserLogin, FromStorage).
 
 add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
     %% TODO: LDAP worker to 
-    FromLDAP = notfound,
-    add_username_from_ldap(Storage, Notification, UserLogin, FromLDAP);
+    LDAP = poolboy:checkout(egara_ldap_pool, false, 10),
+    query_ldap_for_username(Storage, Notification, UserLogin, LDAP);
 add_username_from_storage(Notification, _Storage, _UserLogin, Username) ->
     Notification ++ [ <<"user_id">>, Username ].
+
+query_ldap_for_username(Storage, Notification, UserLogin, LDAP) when is_pid(LDAP) ->
+    FromLDAP = egara_storage:fetch_userdata_for_login(LDAP, UserLogin),
+    add_username_from_ldap(Storage, Notification, UserLogin, FromLDAP);
+query_ldap_for_username(_Storage, Notification, _UserLogin, _) ->
+    lager:warning("Unable to get an LDAP worker"),
+    Notification.
 
 add_username_from_ldap(_Storage, Notification, _UserLogin, notfound) ->
     Notification;
