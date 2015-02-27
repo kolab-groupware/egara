@@ -152,11 +152,8 @@ add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
     RV = query_ldap_for_username(Storage, Notification, UserLogin, LDAP),
     poolboy:checkin(egara_ldap_pool, LDAP),
     RV;
-add_username_from_storage(Storage, Notification, UserLogin, Username) ->
-    LDAP = poolboy:checkout(egara_ldap_pool, false, 10),
-    query_ldap_for_username(Storage, Notification, UserLogin, LDAP),
-    poolboy:checkin(egara_ldap_pool, LDAP),
-    [ { <<"user_id">>, proplists:get_value(<<"id">>, Username, <<"">>) } | Notification ].
+add_username_from_storage(Storage, Notification, UserLogin, UserData) ->
+    [ { <<"user_id">>, proplists:get_value(<<"id">>, UserData, <<"">>) } | Notification ].
 
 query_ldap_for_username(Storage, Notification, UserLogin, LDAP) when is_pid(LDAP) ->
     FromLDAP = egara_storage:fetch_userdata_for_login(LDAP, UserLogin),
