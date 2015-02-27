@@ -1,7 +1,7 @@
-diff --git a/rebar.config b/rebar.config
+diff --git deps/jobs/rebar.config deps/jobs/rebar.config
 index bc2d115..bcbce98 100644
---- a/rebar.config
-+++ b/rebar.config
+--- deps/jobs/rebar.config
++++ deps/jobs/rebar.config
 @@ -8,12 +8,12 @@
  {clean_files, ["*~","*/*~","*/*.xfm","test/*.beam"]}.
  

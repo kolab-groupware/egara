@@ -1,7 +1,7 @@
-diff --git a/rebar.config b/rebar.config
+diff --git deps/protobuffs/rebar.config deps/protobuffs/rebar.config
 index fba5b5f..09cce6a 100644
---- a/rebar.config
-+++ b/rebar.config
+--- deps/protobuffs/rebar.config
++++ deps/protobuffs/rebar.config
 @@ -1,7 +1,7 @@
  {erl_opts, [debug_info]}.
  
