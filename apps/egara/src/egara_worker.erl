@@ -32,7 +32,7 @@ start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
 init(_Args) ->
     %% EventMapping is a map of event types (e.g. <<"FlagsClear">>) to the type of
     %% event (e.g. imap_mesage_event) for routing the notifications through the handler
-    EventMapping = transform_events_config_to_map(application:get_env(events_to_track)),
+    EventMapping = transform_events_config_to_dict(application:get_env(events_to_track)),
     %%lager:info("We gots us ... ~p", [EventMapping]),
     { ok, EventMapping }.
 
@@ -45,7 +45,7 @@ handle_cast(process_events, State) ->
              %%lager:info("Storing using ~p", [Storage]),
             process_as_many_events_as_possible(Storage, State, ?BATCH_SIZE),
             poolboy:checkin(egara_storage_pool, Storage);
-         _ -> 
+         _ ->
             lager:warning("Unable to get storage!")
     end,
     { noreply, State };
@@ -63,15 +63,21 @@ code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 %% private API
-add_events_to_map(Type, Events, EventMap) when is_list(Events) ->
-    lists:foldl(fun(Event, Map) -> maps:put(Event, Type, Map) end, EventMap, Events);
-add_events_to_map(_Type, _Events, EventMap) ->
+add_events_to_dict(Type, Events, EventMap) when is_list(Events) ->
+    F = fun(Event, Map) ->
+                case dict:is_key(Event, Map) of
+                   true -> dict:update(Event, Type, Map);
+                   _ -> dict:store(Event, Type, Map)
+                end
+            end,
+    lists:foldl(F, EventMap, Events);
+add_events_to_dict(_Type, _Events, EventMap) ->
     EventMap.
 
-transform_events_config_to_map({ ok, EventConfig }) ->
-    lists:foldl(fun({ Type, Events }, EventMap) -> add_events_to_map(Type, Events, EventMap) end, maps:new(), EventConfig);
-transform_events_config_to_map(_) ->
-    maps:new(). %% return an empty map .. this is going to be boring
+transform_events_config_to_dict({ ok, EventConfig }) ->
+    lists:foldl(fun({ Type, Events }, EventMap) -> add_events_to_dict(Type, Events, EventMap) end, dict:new(), EventConfig);
+transform_events_config_to_dict(_) ->
+    dict:new(). %% return an empty map .. this is going to be boring
 
 process_as_many_events_as_possible(_Storage, _EventMapping, 0) ->
     egara_notifications_processor:queue_drained(),
@@ -91,14 +97,21 @@ notification_assigned(_Storage, _EventMapping, notfound) ->
     done;
 notification_assigned(Storage, EventMapping, { Key, Notification } ) ->
     EventType = proplists:get_value(<<"event">>, Notification),
-    EventCategory = maps:find(EventType, EventMapping),
+    EventCategory = dict:find(EventType, EventMapping),
     %%lager:info("Type is ~p which maps to ~p", [EventType, EventCategory]),
-    case process_notification_by_category(Storage, Notification, EventCategory) of
-        ok -> %%lager:info("Done with ~p", [Key]),
-              egara_notification_queue:remove(Key),
-              again;
-        _ -> error
-    end.
+    Result = process_notification_by_category(Storage, Notification, EventCategory),
+    post_process_event(Key, Result).
+
+post_process_event(Key, ok) ->
+    %%lager:info("Done with ~p", [Key]),
+    egara_notification_queue:remove(Key),
+    again;
+post_process_event(Key, ignoring) ->
+    %%lager:info("Ignoring ~p", [Key]),
+    egara_notification_queue:remove(Key),
+    again;
+post_process_event(_, _) ->
+    error.
 
 process_notification_by_category(Storage, Notification, { ok, Type }) ->
     %% this version, with the { ok, _ } tuple is called due to maps:find returning { ok, Value }
@@ -106,19 +119,19 @@ process_notification_by_category(Storage, Notification, { ok, Type }) ->
     NotificationWithUsername = ensure_username(Storage, Notification, proplists:get_value(<<"user">>, Notification)),
     process_notification_by_category(Storage, NotificationWithUsername, Type);
 process_notification_by_category(Storage, Notification, imap_message_event) ->
-    lager:info("storing an imap_message_event"),
+    %%lager:info("storing an imap_message_event"),
     Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
-    lager:info("storing an imap_mailbox_event"),
+    %%lager:info("storing an imap_mailbox_event"),
     Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_session_event) ->
-    lager:info("storing an imap_session_event"),
+    %%lager:info("storing an imap_session_event"),
     Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_quota_event) ->
-    lager:info("storing an imap_quota_event"),
+    %%lager:info("storing an imap_quota_event"),
     Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(_Storage, _Notification, _) ->
@@ -126,24 +139,34 @@ process_notification_by_category(_Storage, _Notification, _) ->
     %% to be watched for
     ignoring.
 
-ensure_username(Storage, Notification, { ok, UserLogin } ) ->
+ensure_username(_Storage, Notification, undefined) ->
+    Notification;
+ensure_username(Storage, Notification, UserLogin) ->
     FromStorage = egara_storage:fetch_userdata_for_login(Storage, UserLogin),
-    lager:info("Storage said ... ~p", [FromStorage]),
-    add_username_from_storage(Storage, Notification, UserLogin, FromStorage);
-ensure_username(_Storage, Notification, _) ->
-    Notification.
-
+    %%lager:info("Storage said ... ~p", [FromStorage]),
+    add_username_from_storage(Storage, Notification, UserLogin, FromStorage).
 
 add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
     %% TODO: LDAP worker to 
-    FromLDAP = notfound,
-    add_username_from_ldap(Storage, Notification, UserLogin, FromLDAP);
-add_username_from_storage(Notification, _Storage, _UserLogin, Username) ->
-    Notification ++ [ <<"user_id">>, Username ].
+    LDAP = poolboy:checkout(egara_ldap_pool, false, 10),
+    RV = query_ldap_for_username(Storage, Notification, UserLogin, LDAP),
+    poolboy:checkin(egara_ldap_pool, LDAP),
+    RV;
+add_username_from_storage(Storage, Notification, UserLogin, UserData) ->
+    [ { <<"user_id">>, proplists:get_value(<<"id">>, UserData, <<"">>) } | Notification ].
 
-add_username_from_ldap(Notification, _Storage, _UserLogin, notfound) ->
+query_ldap_for_username(Storage, Notification, UserLogin, LDAP) when is_pid(LDAP) ->
+    FromLDAP = egara_storage:fetch_userdata_for_login(LDAP, UserLogin),
+    add_username_from_ldap(Storage, Notification, UserLogin, FromLDAP);
+query_ldap_for_username(_Storage, Notification, _UserLogin, _) ->
+    lager:warning("Unable to get an LDAP worker"),
+    Notification.
+
+add_username_from_ldap(_Storage, Notification, _UserLogin, notfound) ->
+    %lager:info("LDAP said notfound"),
     Notification;
 add_username_from_ldap(Storage, Notification, UserLogin, UserData) ->
-    %% TODO: storage in user butcket
+    %lager:info("LDAP gave us back ... ~p", [UserData]),
     egara_storage:store_userdata(Storage, UserLogin, UserData),
-    Notification ++ [ <<"user_id">>, UserData ].
+    UserIdTuple = { <<"user_id">>, proplists:get_value(<<"id">>, UserData, <<"">>) },
+    [ UserIdTuple | Notification ].

@@ -46,6 +46,7 @@ init(_Args) ->
     { ok, #state {} }.
 
 handle_call({ store_notification, Key, Notification }, _From, State) ->
+    %lager:info("----> ~p", [Notification]),
     Json = jsx:encode(Notification),
     Storable = riakc_obj:new(<<"notifications">>, Key, Json),
     NewState = ensure_connected(State),
@@ -57,26 +58,33 @@ handle_call({ store_notification, Key, Notification }, _From, State) ->
 handle_call({ store_userdata, UserLogin, UserData }, From, State) when is_list(UserLogin) ->
     handle_call({ store_userdata, erlang:list_to_binary(UserLogin), UserData }, From, State);
 handle_call({ store_userdata, UserLogin, UserData }, _From, State) ->
-    UserId = proplists:get_value(<<"id">>, UserData, <<"">>),
+    UserId = erlang:list_to_binary(proplists:get_value("id", UserData, "")),
     TS = erlang:list_to_binary(egara_utils:current_timestamp()),
-    Key = <<UserLogin, "::", UserId, "::", TS>>,
-    Json = jsx:encode(UserData ++ [ { <<"user">>, UserLogin } ]),
+    Key = <<UserLogin/binary, "::", TS/binary, "::", UserId/binary>>,
+    CurrentKey = userlogin_to_current_userdata_key(UserLogin),
+    Json = jsx:encode([ { <<"user">>, UserLogin } | UserData ]),
     Storable = riakc_obj:new(<<"users">>, Key, Json),
+    CurrentStorable = riakc_obj:new(<<"users">>, CurrentKey, Json),
     NewState = ensure_connected(State),
     Rv = riakc_pb_socket:put(NewState#state.riak_connection, Storable),
+    riakc_pb_socket:put(NewState#state.riak_connection, CurrentStorable),
     { reply, Rv, NewState };
 
 handle_call({ fetch_userdata, UserLogin } , From, State) when is_list(UserLogin) ->
     handle_call({ store_userdata, erlang:list_to_binary(UserLogin) }, From, State);
 handle_call({ fetch_userdata, UserLogin }, _From, State) ->
     NewState = ensure_connected(State),
-    { ok, UserData } = riakc_pb_socket:mapred(NewState#state.riak_connection,
-                                              { <<"users">>, [ [<<"starts_with">>, <<UserLogin, "::">>], [<<"ends_with">>, <<"current">> ] ] },
-                                              [ { map, { qfun, fun(Value, _KeyData, _Arg) -> [ riak_object:get_value(Value) ] end }, none, false } ] ),
-    case UserData of
-        [] -> Response = notfound;
-        [Current|_Tail] -> Response = try jsx:decode(Current) of Term -> Term
-                                        catch error:_ -> ok end;
+    CurrentKey = userlogin_to_current_userdata_key(UserLogin),
+    RiakResponse = riakc_pb_socket:get(NewState#state.riak_connection, <<"users">>, CurrentKey),
+    case RiakResponse of
+        { ok, Obj } ->
+            Value = riakc_obj:get_value(Obj),
+            Response =
+            try jsx:decode(Value) of
+                Term -> Term
+            catch
+                error:_ -> notfound
+            end;
         _ -> Response = notfound
     end,
     { reply, Response, NewState };
@@ -105,8 +113,9 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% private API
 ensure_connected(#state{ riak_connection = none } = State) ->
-    Host = application:get_env(egara, riak_host, "127.0.0.1"),
-    Port = application:get_env(egara, riak_port, 8087),
+    RiakConfig = application:get_env(egara, riak, []),
+    Host = proplists:get_value(host, RiakConfig, "127.0.0.1"),
+    Port = proplists:get_value(port, RiakConfig, 8087),
     %%lager:info("Going to try with ... ~p ~p ~p", [Host, Port, State#state.riak_connection]),
     case riakc_pb_socket:start_link(Host, Port) of
         { ok, Connection } -> State#state{ riak_connection = Connection };
@@ -115,4 +124,6 @@ ensure_connected(#state{ riak_connection = none } = State) ->
 ensure_connected(State) ->
     State.
 
+userlogin_to_current_userdata_key(UserLogin) when is_list(UserLogin) -> userlogin_to_current_userdata_key(erlang:list_to_binary(UserLogin));
+userlogin_to_current_userdata_key(UserLogin) when is_binary(UserLogin) -> <<UserLogin/binary, "::current">>.
 
