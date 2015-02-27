@@ -32,7 +32,7 @@ start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
 init(_Args) ->
     %% EventMapping is a map of event types (e.g. <<"FlagsClear">>) to the type of
     %% event (e.g. imap_mesage_event) for routing the notifications through the handler
-    EventMapping = transform_events_config_to_map(application:get_env(events_to_track)),
+    EventMapping = transform_events_config_to_dict(application:get_env(events_to_track)),
     %%lager:info("We gots us ... ~p", [EventMapping]),
     { ok, EventMapping }.
 
@@ -63,15 +63,21 @@ code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 %% private API
-add_events_to_map(Type, Events, EventMap) when is_list(Events) ->
-    lists:foldl(fun(Event, Map) -> maps:put(Event, Type, Map) end, EventMap, Events);
-add_events_to_map(_Type, _Events, EventMap) ->
+add_events_to_dict(Type, Events, EventMap) when is_list(Events) ->
+    F = fun(Event, Map) ->
+                case dict:is_key(Event, Map) of
+                   true -> dict:update(Event, Type, Map);
+                   _ -> dict:store(Event, Type, Map)
+                end
+            end,
+    lists:foldl(F, EventMap, Events);
+add_events_to_dict(_Type, _Events, EventMap) ->
     EventMap.
 
-transform_events_config_to_map({ ok, EventConfig }) ->
-    lists:foldl(fun({ Type, Events }, EventMap) -> add_events_to_map(Type, Events, EventMap) end, maps:new(), EventConfig);
-transform_events_config_to_map(_) ->
-    maps:new(). %% return an empty map .. this is going to be boring
+transform_events_config_to_dict({ ok, EventConfig }) ->
+    lists:foldl(fun({ Type, Events }, EventMap) -> add_events_to_dict(Type, Events, EventMap) end, dict:new(), EventConfig);
+transform_events_config_to_dict(_) ->
+    dict:new(). %% return an empty map .. this is going to be boring
 
 process_as_many_events_as_possible(_Storage, _EventMapping, 0) ->
     egara_notifications_processor:queue_drained(),
@@ -91,7 +97,7 @@ notification_assigned(_Storage, _EventMapping, notfound) ->
     done;
 notification_assigned(Storage, EventMapping, { Key, Notification } ) ->
     EventType = proplists:get_value(<<"event">>, Notification),
-    EventCategory = maps:find(EventType, EventMapping),
+    EventCategory = dict:find(EventType, EventMapping),
     %%lager:info("Type is ~p which maps to ~p", [EventType, EventCategory]),
     case process_notification_by_category(Storage, Notification, EventCategory) of
         ok -> 
