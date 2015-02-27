@@ -99,17 +99,19 @@ notification_assigned(Storage, EventMapping, { Key, Notification } ) ->
     EventType = proplists:get_value(<<"event">>, Notification),
     EventCategory = dict:find(EventType, EventMapping),
     %%lager:info("Type is ~p which maps to ~p", [EventType, EventCategory]),
-    case process_notification_by_category(Storage, Notification, EventCategory) of
-        ok -> 
-              %%lager:info("Done with ~p", [Key]),
-              egara_notification_queue:remove(Key),
-              again;
-        ignoring ->
-              %%lager:info("Ignoring ~p", [Key]),
-              egara_notification_queue:remove(Key),
-              again;
-        _ -> error
-    end.
+    Result = process_notification_by_category(Storage, Notification, EventCategory),
+    post_process_event(Key, Result).
+
+post_process_event(Key, ok) ->
+    %%lager:info("Done with ~p", [Key]),
+    egara_notification_queue:remove(Key),
+    again;
+post_process_event(Key, ignoring) ->
+    %%lager:info("Ignoring ~p", [Key]),
+    egara_notification_queue:remove(Key),
+    again;
+post_process_event(_, _) ->
+    error.
 
 process_notification_by_category(Storage, Notification, { ok, Type }) ->
     %% this version, with the { ok, _ } tuple is called due to maps:find returning { ok, Value }
