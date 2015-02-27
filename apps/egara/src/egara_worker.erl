@@ -143,15 +143,20 @@ ensure_username(_Storage, Notification, undefined) ->
     Notification;
 ensure_username(Storage, Notification, UserLogin) ->
     FromStorage = egara_storage:fetch_userdata_for_login(Storage, UserLogin),
-    lager:info("Storage said ... ~p", [FromStorage]),
+    %%lager:info("Storage said ... ~p", [FromStorage]),
     add_username_from_storage(Storage, Notification, UserLogin, FromStorage).
 
 add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
     %% TODO: LDAP worker to 
     LDAP = poolboy:checkout(egara_ldap_pool, false, 10),
-    query_ldap_for_username(Storage, Notification, UserLogin, LDAP);
-add_username_from_storage(Notification, _Storage, _UserLogin, Username) ->
-    Notification ++ [ <<"user_id">>, Username ].
+    RV = query_ldap_for_username(Storage, Notification, UserLogin, LDAP),
+    poolboy:checkin(egara_ldap_pool, LDAP),
+    RV;
+add_username_from_storage(Storage, Notification, UserLogin, Username) ->
+    LDAP = poolboy:checkout(egara_ldap_pool, false, 10),
+    query_ldap_for_username(Storage, Notification, UserLogin, LDAP),
+    poolboy:checkin(egara_ldap_pool, LDAP),
+    [ { <<"user_id">>, proplists:get_value(<<"id">>, Username, <<"">>) } | Notification ].
 
 query_ldap_for_username(Storage, Notification, UserLogin, LDAP) when is_pid(LDAP) ->
     FromLDAP = egara_storage:fetch_userdata_for_login(LDAP, UserLogin),
@@ -161,8 +166,10 @@ query_ldap_for_username(_Storage, Notification, _UserLogin, _) ->
     Notification.
 
 add_username_from_ldap(_Storage, Notification, _UserLogin, notfound) ->
+    %lager:info("LDAP said notfound"),
     Notification;
 add_username_from_ldap(Storage, Notification, UserLogin, UserData) ->
-    %% TODO: storage in user butcket
+    %lager:info("LDAP gave us back ... ~p", [UserData]),
     egara_storage:store_userdata(Storage, UserLogin, UserData),
-    Notification ++ [ <<"user_id">>, UserData ].
+    UserIdTuple = { <<"user_id">>, proplists:get_value(<<"id">>, UserData, <<"">>) },
+    [ UserIdTuple | Notification ].
