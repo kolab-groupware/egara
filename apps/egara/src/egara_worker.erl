@@ -122,7 +122,7 @@ process_notification_by_category(Storage, Notification, imap_message_event) ->
     MessageId = message_from_notification(Notification),
     Timestamp = timestamp_from_notification(Notification),
     Key = <<"message::", MessageId/binary, "::", Timestamp/binary>>,
-    lager:info("storing an imap_message_event with key ~p", [Key]),
+    %%lager:info("storing an imap_message_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
     MailBoxId = mailbox_from_notification(Notification),
