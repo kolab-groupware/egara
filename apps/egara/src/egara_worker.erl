@@ -147,12 +147,11 @@ ensure_username(Storage, Notification, UserLogin) ->
     add_username_from_storage(Storage, Notification, UserLogin, FromStorage).
 
 add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
-    %% TODO: LDAP worker to 
     LDAP = poolboy:checkout(egara_ldap_pool, false, 10),
     RV = query_ldap_for_username(Storage, Notification, UserLogin, LDAP),
     poolboy:checkin(egara_ldap_pool, LDAP),
     RV;
-add_username_from_storage(Storage, Notification, UserLogin, UserData) ->
+add_username_from_storage(_Storage, Notification, _UserLogin, UserData) ->
     [ { <<"user_id">>, proplists:get_value(<<"id">>, UserData, <<"">>) } | Notification ].
 
 query_ldap_for_username(Storage, Notification, UserLogin, LDAP) when is_pid(LDAP) ->
@@ -163,10 +162,10 @@ query_ldap_for_username(_Storage, Notification, _UserLogin, _) ->
     Notification.
 
 add_username_from_ldap(_Storage, Notification, _UserLogin, notfound) ->
-    %lager:info("LDAP said notfound"),
+    %%lager:info("LDAP said notfound"),
     Notification;
 add_username_from_ldap(Storage, Notification, UserLogin, UserData) ->
-    %lager:info("LDAP gave us back ... ~p", [UserData]),
+    %%lager:info("LDAP gave us back ... ~p", [UserData]),
     egara_storage:store_userdata(Storage, UserLogin, UserData),
     UserIdTuple = { <<"user_id">>, proplists:get_value(<<"id">>, UserData, <<"">>) },
     [ UserIdTuple | Notification ].
