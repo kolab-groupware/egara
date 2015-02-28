@@ -80,6 +80,19 @@ the application which can be run from in the base directory with `make run`.
 After the first build, `make egara` is faster and should be all that is needed
 unless the dependencies need updating.
 
+== Configuration
+
+=== Event Selection
+
+=== LDAP
+
+=== Riak
+
+deployment/riak.sh
+
+=== Event Receivers
+
+==== Cyrus
+
 == Usage
 
-... not yet :)
