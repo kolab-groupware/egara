@@ -119,12 +119,16 @@ process_notification_by_category(Storage, Notification, { ok, Type }) ->
     NotificationWithUsername = ensure_username(Storage, Notification, proplists:get_value(<<"user">>, Notification)),
     process_notification_by_category(Storage, NotificationWithUsername, Type);
 process_notification_by_category(Storage, Notification, imap_message_event) ->
-    %%lager:info("storing an imap_message_event"),
-    Key = <<"TODO">>, %% TODO!
+    MessageId = message_from_notification(Notification),
+    Timestamp = timestamp_from_notification(Notification),
+    Key = <<"message::", MessageId/binary, "::", Timestamp/binary>>,
+    lager:info("storing an imap_message_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
-    %%lager:info("storing an imap_mailbox_event"),
-    Key = <<"TODO">>, %% TODO!
+    MailBoxId = mailbox_from_notification(Notification),
+    Timestamp = timestamp_from_notification(Notification),
+    Key = <<"mailbox::", MailBoxId/binary, "::", Timestamp/binary>>,
+    %%lager:info("storing an imap_mailbox_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_session_event) ->
     KeyPrefix = key_prefix_for_session_event(proplists:get_value(<<"event">>, Notification, <<"unknown">>)),
@@ -151,7 +155,7 @@ key_prefix_for_session_event(_) -> <<"session_event">>.
 userid_from_notification(Notification) ->
     case proplists:get_value(<<"user_id">>, Notification, unknown) of
         unknown -> lager:info("Couldn't find the user_id in ~p", [Notification]), proplists:get_value(<<"user">>, Notification, <<"unknown_user">>);
-        UserId -> UserId;
+        UserId -> UserId
     end.
 
 timestamp_from_notification(Notification) ->
@@ -160,6 +164,13 @@ timestamp_from_notification(Notification) ->
         Timestamp -> Timestamp
     end.
 
+mailbox_from_notification(Notification) ->
+    %%TODO: proper mailbox UID
+    proplists:get_value(<<"mailboxID">>, Notification, <<"unknown_mailbox">>).
+
+message_from_notification(Notification) ->
+    %%TODO: proper message UID
+    proplists:get_value(<<"uri">>, Notification, <<"unknown_message">>).
 
 ensure_username(_Storage, Notification, undefined) ->
     Notification;
