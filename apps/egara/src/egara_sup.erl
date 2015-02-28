@@ -26,7 +26,7 @@
 -export([init/1]).
 
 %% Helper macro for declaring children of supervisor
--define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
+-define(CHILD(Module, Type), { Module, { Module, start_link, []}, permanent, 5000, Type, [Module] }).
 
 %% ===================================================================
 %% API functions
@@ -53,6 +53,7 @@ init([]) ->
                           end, Pools),
     lager:info("Pools: ~p", [PoolSpecs]),
     Children = [
+                 ?CHILD(egara_riak_config, worker),
                  ?CHILD(egara_notifications_receiver, worker),
                  ?CHILD(egara_notifications_processor, worker)
                ],
