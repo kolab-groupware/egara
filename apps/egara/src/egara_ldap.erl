@@ -108,7 +108,7 @@ query_userdata(UserLogin, State) ->
     UserAuthAttrs = ["mail", "alias", "uid"], %%TODO: configurable?
     ObjectClassFilter = eldap:equalityMatch("objectclass", "inetorgperson"),
     UserFilter = eldap:'or'(lists:foldl(fun(Attr, Acc) -> [ eldap:equalityMatch(Attr, UserLoginString) | Acc ] end, [], UserAuthAttrs)),
-    Filter = UserFilter, %eldap:'and'([UserFilter, ObjectClassFilter]),
+    Filter = eldap:'and'([UserFilter, ObjectClassFilter]),
     SearchOptions = [{ base, UserBaseDn }, { filter, Filter }, { attributes, Attrs } ],
     %%lager:info("OUR FILTERS ARE ~p", [SearchOptions]),
     LDAPResponse = eldap:search(State#state.ldap_connection, SearchOptions),

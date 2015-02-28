@@ -46,9 +46,9 @@ init(_Args) ->
     { ok, #state {} }.
 
 handle_call({ store_notification, Key, Notification }, _From, State) ->
-    %lager:info("----> ~p", [Notification]),
+    %%lager:info("Notification----> ~p = ~p", [Key, Notification]),
     Json = jsx:encode(Notification),
-    Storable = riakc_obj:new(<<"notifications">>, Key, Json),
+    Storable = riakc_obj:new(notification_bucket(), Key, Json, json_type()),
     NewState = ensure_connected(State),
     case riakc_pb_socket:put(NewState#state.riak_connection, Storable) of
         ok -> { reply, ok, NewState };
@@ -61,21 +61,24 @@ handle_call({ store_userdata, UserLogin, UserData }, _From, State) ->
     UserId = erlang:list_to_binary(proplists:get_value("id", UserData, "")),
     TS = erlang:list_to_binary(egara_utils:current_timestamp()),
     Key = <<UserLogin/binary, "::", TS/binary, "::", UserId/binary>>,
-    CurrentKey = userlogin_to_current_userdata_key(UserLogin),
     Json = jsx:encode([ { <<"user">>, UserLogin } | UserData ]),
-    Storable = riakc_obj:new(<<"users">>, Key, Json),
-    CurrentStorable = riakc_obj:new(<<"users">>, CurrentKey, Json),
+    Storable = riakc_obj:new(historical_users_bucket(), Key, Json, json_type()),
     NewState = ensure_connected(State),
-    Rv = riakc_pb_socket:put(NewState#state.riak_connection, Storable),
-    riakc_pb_socket:put(NewState#state.riak_connection, CurrentStorable),
-    { reply, Rv, NewState };
+    case riakc_pb_socket:put(NewState#state.riak_connection, Storable) of
+        ok -> 
+            CurrentStorable = riakc_obj:new(current_user_bucket(), UserLogin, Json, json_type()),
+            case riakc_pb_socket:put(NewState#state.riak_connection, CurrentStorable) of
+                ok -> { reply, ok, NewState };
+                Rv -> lager:warning("Failed to store current user data: ~p", [Rv]), { reply, error, NewState }
+            end;
+        Rv -> lager:warning("Failed to store user data: ~p", [Rv]), { reply, error, NewState }
+    end;
 
 handle_call({ fetch_userdata, UserLogin } , From, State) when is_list(UserLogin) ->
     handle_call({ store_userdata, erlang:list_to_binary(UserLogin) }, From, State);
-handle_call({ fetch_userdata, UserLogin }, _From, State) ->
+handle_call({ fetch_userdata, UserLogin }, _From, State) when is_binary(UserLogin) ->
     NewState = ensure_connected(State),
-    CurrentKey = userlogin_to_current_userdata_key(UserLogin),
-    RiakResponse = riakc_pb_socket:get(NewState#state.riak_connection, <<"users">>, CurrentKey),
+    RiakResponse = riakc_pb_socket:get(NewState#state.riak_connection, current_user_bucket(), UserLogin),
     case RiakResponse of
         { ok, Obj } ->
             Value = riakc_obj:get_value(Obj),
@@ -124,6 +127,7 @@ ensure_connected(#state{ riak_connection = none } = State) ->
 ensure_connected(State) ->
     State.
 
-userlogin_to_current_userdata_key(UserLogin) when is_list(UserLogin) -> userlogin_to_current_userdata_key(erlang:list_to_binary(UserLogin));
-userlogin_to_current_userdata_key(UserLogin) when is_binary(UserLogin) -> <<UserLogin/binary, "::current">>.
-
+historical_users_bucket() -> { <<"egara-lww">>, <<"users">> }.
+current_user_bucket() -> { <<"egara-unique">>, <<"current_users">> }.
+notification_bucket() -> { <<"egara-lww">>, <<"notifications">> }.
+json_type() -> <<"application/json">>.

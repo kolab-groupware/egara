@@ -119,25 +119,58 @@ process_notification_by_category(Storage, Notification, { ok, Type }) ->
     NotificationWithUsername = ensure_username(Storage, Notification, proplists:get_value(<<"user">>, Notification)),
     process_notification_by_category(Storage, NotificationWithUsername, Type);
 process_notification_by_category(Storage, Notification, imap_message_event) ->
-    %%lager:info("storing an imap_message_event"),
-    Key = <<"TODO">>, %% TODO!
+    MessageId = message_from_notification(Notification),
+    Timestamp = timestamp_from_notification(Notification),
+    Key = <<"message::", MessageId/binary, "::", Timestamp/binary>>,
+    %%lager:info("storing an imap_message_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
-    %%lager:info("storing an imap_mailbox_event"),
-    Key = <<"TODO">>, %% TODO!
+    MailBoxId = mailbox_from_notification(Notification),
+    Timestamp = timestamp_from_notification(Notification),
+    Key = <<"mailbox::", MailBoxId/binary, "::", Timestamp/binary>>,
+    %%lager:info("storing an imap_mailbox_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_session_event) ->
-    %%lager:info("storing an imap_session_event"),
-    Key = <<"TODO">>, %% TODO!
+    KeyPrefix = key_prefix_for_session_event(proplists:get_value(<<"event">>, Notification, <<"unknown">>)),
+    UserId = userid_from_notification(Notification),
+    Timestamp = timestamp_from_notification(Notification),
+    Key = <<KeyPrefix/binary, "::", UserId/binary, "::", Timestamp/binary>>,
+    %%lager:info("storing an imap_session_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_quota_event) ->
-    %%lager:info("storing an imap_quota_event"),
-    Key = <<"TODO">>, %% TODO!
+    UserId = userid_from_notification(Notification),
+    Timestamp = timestamp_from_notification(Notification),
+    Key = <<"quota::", UserId/binary, "::", Timestamp/binary>>,
+    %%lager:info("storing an imap_quota_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(_Storage, _Notification, _) ->
     %% in here we have a notification we don't recognize, probably because it was not configured
     %% to be watched for
     ignoring.
+
+key_prefix_for_session_event(<<"Login">>) -> <<"session_login">>;
+key_prefix_for_session_event(<<"Logout">>) -> <<"session_logout">>;
+key_prefix_for_session_event(_) -> <<"session_event">>.
+
+userid_from_notification(Notification) ->
+    case proplists:get_value(<<"user_id">>, Notification, unknown) of
+        unknown -> lager:info("Couldn't find the user_id in ~p", [Notification]), proplists:get_value(<<"user">>, Notification, <<"unknown_user">>);
+        UserId -> UserId
+    end.
+
+timestamp_from_notification(Notification) ->
+    case proplists:get_value(<<"timestamp">>, Notification, unknown) of
+        unknown -> erlang:list_to_binary(egara_utils:current_timestamp());
+        Timestamp -> Timestamp
+    end.
+
+mailbox_from_notification(Notification) ->
+    %%TODO: proper mailbox UID
+    proplists:get_value(<<"mailboxID">>, Notification, <<"unknown_mailbox">>).
+
+message_from_notification(Notification) ->
+    %%TODO: proper message UID
+    proplists:get_value(<<"uri">>, Notification, <<"unknown_message">>).
 
 ensure_username(_Storage, Notification, undefined) ->
     Notification;
@@ -147,13 +180,12 @@ ensure_username(Storage, Notification, UserLogin) ->
     add_username_from_storage(Storage, Notification, UserLogin, FromStorage).
 
 add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
-    %% TODO: LDAP worker to 
     LDAP = poolboy:checkout(egara_ldap_pool, false, 10),
     RV = query_ldap_for_username(Storage, Notification, UserLogin, LDAP),
     poolboy:checkin(egara_ldap_pool, LDAP),
     RV;
-add_username_from_storage(Storage, Notification, UserLogin, UserData) ->
-    [ { <<"user_id">>, proplists:get_value(<<"id">>, UserData, <<"">>) } | Notification ].
+add_username_from_storage(_Storage, Notification, _UserLogin, UserData) ->
+    [ { <<"user_id">>, as_binary(proplists:get_value(<<"id">>, UserData, <<"">>)) } | Notification ].
 
 query_ldap_for_username(Storage, Notification, UserLogin, LDAP) when is_pid(LDAP) ->
     FromLDAP = egara_storage:fetch_userdata_for_login(LDAP, UserLogin),
@@ -163,10 +195,13 @@ query_ldap_for_username(_Storage, Notification, _UserLogin, _) ->
     Notification.
 
 add_username_from_ldap(_Storage, Notification, _UserLogin, notfound) ->
-    %lager:info("LDAP said notfound"),
+    %%lager:info("LDAP said notfound"),
     Notification;
 add_username_from_ldap(Storage, Notification, UserLogin, UserData) ->
-    %lager:info("LDAP gave us back ... ~p", [UserData]),
+    %%lager:info("LDAP gave us back ... ~p", [UserData]),
     egara_storage:store_userdata(Storage, UserLogin, UserData),
-    UserIdTuple = { <<"user_id">>, proplists:get_value(<<"id">>, UserData, <<"">>) },
+    UserIdTuple = { <<"user_id">>, as_binary(proplists:get_value(<<"id">>, UserData, <<"">>)) },
     [ UserIdTuple | Notification ].
+
+as_binary(Value) when is_binary(Value) -> Value;
+as_binary(Value) when is_list(Value) -> erlang:list_to_binary(Value).
