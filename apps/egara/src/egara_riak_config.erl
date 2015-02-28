@@ -35,15 +35,7 @@ connection_params() -> gen_server:call(?MODULE, connection_params).
 
 %% gen_server API
 init(_Args) -> 
-    Sanitizer = fun({ Host, Port } = Tuple, Acc) when is_list(Host), is_integer(Port) -> [ Tuple | Acc ];
-                   (_, Acc) -> Acc
-                end,
-    Config =
-    case application:get_env(egara, riak, missing) of
-        List when is_list(List) -> lists:foldl(Sanitizer, [], List);
-        _ -> [ { "localhost", 10017 } ]
-    end,
-    { ok, #state{ config = Config } }.
+    { ok, #state{ config = sanitize_config(application:get_env(egara, riak, missing)) } }.
 
 handle_call(connection_params, _From, State) ->
     Length = length(State#state.config),
@@ -59,9 +51,19 @@ terminate(_Reason, _State) -> ok.
 code_change(_OldVsn, State, _Extra) -> { ok, State }.
 
 %% private API
+sanitize_config(List) when is_list(List) ->
+    Sanitizer = fun({ Host, Port } = Tuple, Acc) when is_list(Host), is_integer(Port) -> [ Tuple | Acc ];
+                   (_, Acc) -> Acc
+                end,
+    case lists:foldl(Sanitizer, [], List) of
+        [] -> sanitize_config(missing);
+        Config -> Config
+    end;
+sanitize_config(_) -> [ { "localhost", 10017 } ].
+
 next_config(Length, #state{ pos = Pos, config = Config } = State) when Pos > Length ->
     [ Tuple | _ ] = Config,
     { reply, Tuple, State#state{ pos = 2 } };
-next_config(Length, #state{ pos = Pos, config = Config } = State) ->
+next_config(_Length, #state{ pos = Pos, config = Config } = State) ->
     Tuple = lists:nth(Pos, Config),
     { reply, Tuple, State#state{ pos = Pos + 1 } }.
