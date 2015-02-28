@@ -152,7 +152,7 @@ add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
     poolboy:checkin(egara_ldap_pool, LDAP),
     RV;
 add_username_from_storage(_Storage, Notification, _UserLogin, UserData) ->
-    [ { <<"user_id">>, proplists:get_value(<<"id">>, UserData, <<"">>) } | Notification ].
+    [ { <<"user_id">>, as_binary(proplists:get_value(<<"id">>, UserData, <<"">>)) } | Notification ].
 
 query_ldap_for_username(Storage, Notification, UserLogin, LDAP) when is_pid(LDAP) ->
     FromLDAP = egara_storage:fetch_userdata_for_login(LDAP, UserLogin),
@@ -167,5 +167,8 @@ add_username_from_ldap(_Storage, Notification, _UserLogin, notfound) ->
 add_username_from_ldap(Storage, Notification, UserLogin, UserData) ->
     %%lager:info("LDAP gave us back ... ~p", [UserData]),
     egara_storage:store_userdata(Storage, UserLogin, UserData),
-    UserIdTuple = { <<"user_id">>, proplists:get_value(<<"id">>, UserData, <<"">>) },
+    UserIdTuple = { <<"user_id">>, as_binary(proplists:get_value(<<"id">>, UserData, <<"">>)) },
     [ UserIdTuple | Notification ].
+
+as_binary(Value) when is_binary(Value) -> Value;
+as_binary(Value) when is_list(Value) -> erlang:list_to_binary(Value).
