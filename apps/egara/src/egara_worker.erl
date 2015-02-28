@@ -127,17 +127,39 @@ process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
     Key = <<"TODO">>, %% TODO!
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_session_event) ->
-    %%lager:info("storing an imap_session_event"),
-    Key = <<"TODO">>, %% TODO!
+    KeyPrefix = key_prefix_for_session_event(proplists:get_value(<<"event">>, Notification, <<"unknown">>)),
+    UserId = userid_from_notification(Notification),
+    Timestamp = timestamp_from_notification(Notification),
+    Key = <<KeyPrefix/binary, "::", UserId/binary, "::", Timestamp/binary>>,
+    %%lager:info("storing an imap_session_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_quota_event) ->
-    %%lager:info("storing an imap_quota_event"),
-    Key = <<"TODO">>, %% TODO!
+    UserId = userid_from_notification(Notification),
+    Timestamp = timestamp_from_notification(Notification),
+    Key = <<"quota::", UserId/binary, "::", Timestamp/binary>>,
+    %%lager:info("storing an imap_quota_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(_Storage, _Notification, _) ->
     %% in here we have a notification we don't recognize, probably because it was not configured
     %% to be watched for
     ignoring.
+
+key_prefix_for_session_event(<<"Login">>) -> <<"session_login">>;
+key_prefix_for_session_event(<<"Logout">>) -> <<"session_logout">>;
+key_prefix_for_session_event(_) -> <<"session_event">>.
+
+userid_from_notification(Notification) ->
+    case proplists:get_value(<<"user_id">>, Notification, unknown) of
+        unknown -> lager:info("Couldn't find the user_id in ~p", [Notification]), proplists:get_value(<<"user">>, Notification, <<"unknown_user">>);
+        UserId -> UserId;
+    end.
+
+timestamp_from_notification(Notification) ->
+    case proplists:get_value(<<"timestamp">>, Notification, unknown) of
+        unknown -> erlang:list_to_binary(egara_utils:current_timestamp());
+        Timestamp -> Timestamp
+    end.
+
 
 ensure_username(_Storage, Notification, undefined) ->
     Notification;
