@@ -51,7 +51,7 @@ init([]) ->
                                   PoolArgs = [{ name, { local, Name } }, { worker_module, Module }],
                                   poolboy:child_spec(Name, PoolArgs ++ PoolConfig, WorkerArgs)
                           end, Pools),
-    lager:info("Pools: ~p", [PoolSpecs]),
+    %lager:info("Pools: ~p", [PoolSpecs]),
     Children = [
                  ?CHILD(egara_riak_config, worker),
                  ?CHILD(egara_notifications_receiver, worker),
