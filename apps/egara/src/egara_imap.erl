@@ -20,7 +20,7 @@
 -behaviour(gen_fsm).
 
 %% API
--export([start_link/0, connect/1]).
+-export([start_link/0, connect/1, disconnect/1]).
 
 %% gen_fsm callbacks
 -export([disconnected/2, authenticate/2, authenticating/2, idle/2]).
@@ -33,6 +33,7 @@
 %% public API
 start_link() -> gen_fsm:start_link(?MODULE, [], []).
 connect(PID) -> gen_fsm:send_event(PID, connect).
+disconnect(PID) -> gen_fsm:send_all_state_event(PID, disconnect).
 
 %% gen_server API
 init(_Args) -> 
@@ -79,6 +80,11 @@ idle(_Event, State) ->
     lager:info("Idling"),
     { next_state, idle, State }.
 
+handle_event(disconnect, StateName, #state{ socket = none } = State) ->
+    { next_state, disconnected, reset_state(State) };
+handle_event(disconnect, StateName, State) ->
+    close_socket(State),
+    { next_state, disconnected, reset_state(State) };
 handle_event(_Event, StateName, State) -> { next_state, StateName, State}.
 
 handle_sync_event(_Event, _From, StateName, State) -> { next_state, StateName, State}.
@@ -117,6 +123,11 @@ generate_command_tag(#state{ command_serial = Serial } = State) ->
 
 create_socket(Host, Port, true) -> ssl:connect(Host, Port, [binary, {active, once}], 1000);
 create_socket(Host, Port, _) -> gen_tcp:connect(Host, Port, [binary, {active, once}], 1000).
+
+close_socket(#state{ socket = Socket, tls = true }) -> ssl:close(Socket);
+close_socket(#state{ socket = Socket }) -> gen_tcp:close(Socket).
+
+reset_state(State) -> State#state{ socket = none, authed = false, command_serial = 1 }.
 
 send_command(Socket, Command, #state{ tls = true}) -> lager:info("Sending command over SSL: ~p", [Command]), ssl:send(Socket, Command);
 send_command(Socket, Command, _) -> lager:info("Sending command: ~s", [Command]), gen_tcp:send(Socket, Command).
