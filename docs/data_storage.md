@@ -4,6 +4,14 @@ The structure of keys and values as stored by egara is documented
 below. It is divided into one section for each type of data is manages,
 which is then further subdivided by bucket.
 
+= Riak Configuration
+
+Egara relies on a set of bucket types being available at runtime. As Riak
+currently does not provide an API for creating bucket types, the script in
+deployment/riak.sh must be run once on any one of the systems that is
+hosting a Riak node prior to using Egara. Egara may be running when the script
+is run, but will not function properly until it completed.
+
 = IMAP Data
 
 There are four buckets in use:
