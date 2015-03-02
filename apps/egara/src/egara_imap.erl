@@ -105,7 +105,7 @@ handle_info({tcp_closed, Socket}, _StateName, #state{ socket = Socket, host = Ho
 handle_info(_Info, StateName, State) ->
         { noreply, StateName, State }.
 
-terminate(_Reason, _Statename, _State) -> ok.
+terminate(_Reason, _Statename, State) -> close_socket(State), ok.
 
 code_change(_OldVsn, Statename, State, _Extra) -> { ok, Statename, State }.
 
