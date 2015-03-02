@@ -80,8 +80,6 @@ idle(_Event, State) ->
     lager:info("Idling"),
     { next_state, idle, State }.
 
-handle_event(disconnect, StateName, #state{ socket = none } = State) ->
-    { next_state, disconnected, reset_state(State) };
 handle_event(disconnect, StateName, State) ->
     close_socket(State),
     { next_state, disconnected, reset_state(State) };
@@ -124,6 +122,7 @@ generate_command_tag(#state{ command_serial = Serial } = State) ->
 create_socket(Host, Port, true) -> ssl:connect(Host, Port, [binary, {active, once}], 1000);
 create_socket(Host, Port, _) -> gen_tcp:connect(Host, Port, [binary, {active, once}], 1000).
 
+close_socket(#state{ socket = none }) -> ok;
 close_socket(#state{ socket = Socket, tls = true }) -> ssl:close(Socket);
 close_socket(#state{ socket = Socket }) -> gen_tcp:close(Socket).
 
