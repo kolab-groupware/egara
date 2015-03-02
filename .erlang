@@ -22,6 +22,4 @@
 
 application:start(egara).
 
-{ok, PID} = egara_imap:start_link().
-egara_imap:connect(PID).
 

@@ -20,20 +20,25 @@
 -behaviour(gen_fsm).
 
 %% API
--export([start_link/0, connect/1, disconnect/1]).
+-export([start_link/0, connect/1, disconnect/1, get_folder_annotations/3]).
 
 %% gen_fsm callbacks
--export([disconnected/2, authenticate/2, authenticating/2, idle/2]).
+-export([disconnected/2, authenticate/2, authenticating/2, idle/2, wait_response/2]).
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 
 %% state record definition
--record(state, { host, port, tls, user, pass, authed = false, socket = none, command_serial = 1  }).
+-record(state, { host, port, tls, user, pass, authed = false, socket = none, command_serial = 1, command_queue = queue:new() }).
+-record(command, { message, from }).
 
 
 %% public API
 start_link() -> gen_fsm:start_link(?MODULE, [], []).
 connect(PID) -> gen_fsm:send_event(PID, connect).
 disconnect(PID) -> gen_fsm:send_all_state_event(PID, disconnect).
+get_folder_annotations(PID, From, Folder) when is_list(Folder) ->
+    get_folder_annotations(PID, From, list_to_binary(Folder));
+get_folder_annotations(PID, From, Folder) when is_binary(Folder) ->
+    gen_fsm:send_all_state_event(PID, { get_folder_annotations, From, Folder }).
 
 %% gen_server API
 init(_Args) -> 
@@ -42,53 +47,80 @@ init(_Args) ->
     State = #state {
                 host = proplists:get_value(host, AdminConnConfig, ""),
                 port = proplists:get_value(port, AdminConnConfig, 993),
-                tls = proplists:get_value(tls, AdminConnConfig, true),
-                user = proplists:get_value(user, AdminConnConfig, "cyrus-admin"),
-                pass = proplists:get_value(pass, AdminConnConfig, "")
+                tls  = proplists:get_value(tls, AdminConnConfig, true),
+                user = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
+                pass = list_to_binary(proplists:get_value(pass, AdminConnConfig, ""))
               },
     { ok, disconnected, State }.
 
 disconnected(connect, #state{ host = Host, port = Port, tls = TLS, socket = none } = State) ->
     lager:info("~p:  Connecting to ~p:~p", [connect, Host, Port]),
     {ok, Socket} = create_socket(Host, Port, TLS),
-    { next_state, authenticate, State#state { socket = Socket } }.
+    { next_state, authenticate, State#state { socket = Socket } };
+disconnected(connect, State) ->
+    lager:warning("Already connected to IMAP server!"),
+    { next_state, authenticate, State };
+disconnected(Command, State) when is_record(Command, command) ->
+    { next_state, disconnected, enque_command(Command, State) }.
 
-authenticate({ data, Data }, #state{ socket = Socket, user = User, pass = Pass, authed = false } = State) ->
-    { NextState, CommandTag } = generate_command_tag(State),
-    lager:info("Got ~p", [Data]),
-    lager:info("About to connect with ~p", [CommandTag]),
-    send_command(Socket, io_lib:format("~s LOGIN ~s ~s~n", [CommandTag, User, Pass]), State),
-    { next_state, authenticating, NextState#state{ authed = CommandTag} }.
+authenticate({ data, _Data }, #state{ user = User, pass = Pass, authed = false } = State) ->
+    NextState = send_command(<<"LOGIN ", User/binary, " ", Pass/binary>>, State),
+    { next_state, authenticating, NextState#state{ authed = in_process } };
+authenticate(Command, State) when is_record(Command, command) ->
+    { next_state, authenticate, enque_command(Command, State) }.
 
-authenticating({ data, Data}, #state{ authed = Tag } = State) when is_binary(Tag) ->
-    Token = <<Tag/binary, " OK">>,
-    Auth =
+authenticating({ data, Data }, #state{ authed = in_process } = State) ->
+    Token = <<" OK ">>, %TODO would be nice to have the tag there
     case binary:match(Data, Token) of
-        {0, _} ->
-            lager:info("Logged in to IMAP server"),
-            true;
-        _ ->
+        nomatch ->
             lager:warning("Log in to IMAP server failed: ~p", [Data]),
-            false
-    end,
-    { next_state, idle, State#state{ authed = Auth } }.
+            close_socket(State),
+            { next_state, idle, State#state{ socket = none, authed = false } };
+        _ ->
+            lager:info("Logged in to IMAP server successfully"),
+            gen_fsm:send_event(self(), process_command_queue),
+            { next_state, idle, State#state{ authed = true } }
+    end;
+authenticating(Command, State) when is_record(Command, command) ->
+    { next_state, authenticating, enque_command(Command, State) }.
 
+idle(process_command_queue, #state{ command_queue = Queue } = State) ->
+    case queue:out(Queue) of
+       { { value, #command{ message = Message, from = From } }, ModifiedQueue } ->
+            lager:info("Clearing queue of ~p", [Message]),
+            NextState = send_command(Message, State),
+            { next_state, wait_response, NextState#state{ command_queue = ModifiedQueue } };
+       { empty, ModifiedQueue } ->
+            { next_state, idle, State#state{ command_queue = ModifiedQueue } }
+    end;
 idle({ data, Data }, State) ->
     lager:info("Idling, server sent: ~p", [Data]),
     { next_state, idle, State };
-idle(_Event, State) ->
+idle(#command{ message = Message, from = From }, State) ->
     lager:info("Idling"),
+    NextState = send_command(Message, State),
+    { next_state, wait_response, NextState };
+idle(_Event, State) ->
     { next_state, idle, State }.
 
-handle_event(disconnect, StateName, State) ->
+wait_response({ data, Data }, State) ->
+    lager:info("Waiting for a response, server sent: ~p", [Data]),
+    gen_fsm:send_event(self(), process_command_queue),
+    { next_state, idle, State }.
+
+handle_event(disconnect, _StateName, State) ->
     close_socket(State),
     { next_state, disconnected, reset_state(State) };
+handle_event({ get_folder_annotations, From, Folder }, StateName, State) ->
+    Command = #command{ message = <<"GETANNOTATION ", Folder/binary, " \"*\" \"value.shared\"">>, from = From },
+    ?MODULE:StateName(Command, State);
 handle_event(_Event, StateName, State) -> { next_state, StateName, State}.
 
 handle_sync_event(_Event, _From, StateName, State) -> { next_state, StateName, State}.
 
 handle_info({ ssl, Socket, Bin }, StateName, #state{ socket = Socket } = State) ->
     % Flow control: enable forwarding of next TCP message
+    lager:info("Received from server: ~p", [Bin]),
     ssl:setopts(Socket, [{ active, once }]),
     ?MODULE:StateName({ data, Bin }, State);
 
@@ -128,5 +160,25 @@ close_socket(#state{ socket = Socket }) -> gen_tcp:close(Socket).
 
 reset_state(State) -> State#state{ socket = none, authed = false, command_serial = 1 }.
 
-send_command(Socket, Command, #state{ tls = true}) -> lager:info("Sending command over SSL: ~p", [Command]), ssl:send(Socket, Command);
-send_command(Socket, Command, _) -> lager:info("Sending command: ~s", [Command]), gen_tcp:send(Socket, Command).
+send_command(Command, State) when is_list(Command) ->
+    lager:info("Warning! Turning a command string into a binary!"),
+    send_command(list_to_binary(Command), State);
+send_command(Command, #state{ socket = none } = State) ->
+    lager:warning("Not connected, dropping command on floor: ~s", [Command]),
+    State;
+send_command(Command, #state{ socket = Socket, tls = true} = State) ->
+    { NextState, CommandTag } = generate_command_tag(State),
+    Data = <<CommandTag/binary, " ", Command/binary, "\n">>,
+    lager:info("Sending command over SSL: ~s", [Data]),
+    ssl:send(Socket, Data),
+    NextState;
+send_command(Command, #state{ socket = Socket } = State) ->
+    lager:info("Sending command: ~s", [Command]),
+    { NextState, CommandTag } = generate_command_tag(State),
+    gen_tcp:send(Socket, <<CommandTag, Command, "\n">>),
+    NextState.
+
+enque_command(Command, State) ->
+    lager:info("Enqueuing command ~p", [Command]),
+    State#state { command_queue = queue:in(Command, State#state.command_queue) }.
+
