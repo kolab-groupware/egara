@@ -39,7 +39,7 @@ disconnect(PID) -> gen_fsm:send_all_state_event(PID, disconnect).
 get_folder_annotations(PID, From, ResponseToken, Folder) when is_list(Folder) ->
     get_folder_annotations(PID, From, ResponseToken, list_to_binary(Folder));
 get_folder_annotations(PID, From, ResponseToken, Folder) when is_binary(Folder) ->
-    gen_fsm:send_all_state_event(PID, { get_folder_annotations, From, ResponseToken, Folder }).
+    gen_fsm:send_all_state_event(PID, { ready_command, egara_imap_parser_annotation:new(Folder), From, ResponseToken }).
 
 %% gen_server API
 init(_Args) -> 
@@ -52,7 +52,7 @@ init(_Args) ->
                 user = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
                 pass = list_to_binary(proplists:get_value(pass, AdminConnConfig, ""))
               },
-    gen_fsm:send_all_state_event(self(), { get_shared_prefix, self(), get_shared_prefix }),
+    gen_fsm:send_all_state_event(self(), { ready_command, egara_imap_parser_namespace:new(), self(), get_shared_prefix }),
     { ok, disconnected, State }.
 
 disconnected(connect, #state{ host = Host, port = Port, tls = TLS, socket = none } = State) ->
@@ -66,11 +66,10 @@ disconnected(Command, State) when is_record(Command, command) ->
     { next_state, disconnected, enque_command(Command, State) }.
 
 authenticate({ data, _Data }, #state{ user = User, pass = Pass, authed = false } = State) ->
-    { NewState, Tag } = generate_command_tag(State),
     Message = <<"LOGIN ", User/binary, " ", Pass/binary>>,
-    Command = #command{ tag = Tag, message = Message },
+    Command = #command{ message = Message },
     send_command(Command, State),
-    { next_state, authenticating, NewState#state{ authed = in_process } };
+    { next_state, authenticating, State#state{ authed = in_process } };
 authenticate(Command, State) when is_record(Command, command) ->
     { next_state, authenticate, enque_command(Command, State) }.
 
@@ -82,7 +81,7 @@ authenticating({ data, Data }, #state{ authed = in_process } = State) ->
             close_socket(State),
             { next_state, idle, State#state{ socket = none, authed = false } };
         _ ->
-            lager:info("Logged in to IMAP server successfully"),
+            %%lager:info("Logged in to IMAP server successfully"),
             gen_fsm:send_event(self(), process_command_queue),
             { next_state, idle, State#state{ authed = true } }
     end;
@@ -92,7 +91,7 @@ authenticating(Command, State) when is_record(Command, command) ->
 idle(process_command_queue, #state{ command_queue = Queue } = State) ->
     case queue:out(Queue) of
        { { value, Command }, ModifiedQueue } when is_record(Command, command) ->
-            lager:info("Clearing queue of ~p", [Command]),
+            %%lager:info("Clearing queue of ~p", [Command]),
             NewState = send_command(Command, State),
             { next_state, wait_response, NewState#state{ command_queue = ModifiedQueue } };
        { empty, ModifiedQueue } ->
@@ -111,6 +110,7 @@ idle(_Event, State) ->
 wait_response({ data, Data }, State) ->
     %%lager:info("Waiting for a response, server sent: ~p", [Data]),
     %%TODO: this case statement is going to quickly get ugly with all the message possibilities
+    %%      find an elegant way to use the egara_imap_command_* modules for this
     Response  =
     case Data of
         <<"* NAMESPACE ", _/binary>> ->
@@ -126,16 +126,10 @@ wait_response({ data, Data }, State) ->
 handle_event(disconnect, _StateName, State) ->
     close_socket(State),
     { next_state, disconnected, reset_state(State) };
-handle_event({ get_folder_annotations, From, ResponseToken, Folder }, StateName, State) ->
-    { NewState, Tag } = generate_command_tag(State),
-    Message = <<"GETANNOTATION ", Folder/binary, " \"*\" \"value.shared\"">>,
-    Command = #command{ tag = Tag, message = Message, from = From, response_token = ResponseToken },
-    ?MODULE:StateName(Command, NewState);
-handle_event({ get_shared_prefix, From, ResponseToken }, StateName, State) ->
-    %% http://tools.ietf.org/html/rfc2342
-    { NewState, Tag } = generate_command_tag(State),
-    Command = #command{ tag = Tag, message = <<"NAMESPACE">>, from = From, response_token = ResponseToken },
-    ?MODULE:StateName(Command, NewState);
+handle_event({ ready_command, Message, From, ResponseToken }, StateName, State) ->
+    Command = #command{ message = Message, from = From, response_token = ResponseToken },
+    lager:info("UUUuuuuuuuuuuuuuuuuuh ~p", [ Command ]),
+    ?MODULE:StateName(Command, State);
 handle_event(_Event, StateName, State) -> { next_state, StateName, State}.
 
 handle_sync_event(_Event, _From, StateName, State) -> { next_state, StateName, State}.
@@ -175,10 +169,6 @@ tag_field_width(Serial) -> tag_field_width(Serial / 10000, 5).
 tag_field_width(Serial, Count) when Serial < 10 -> Count;
 tag_field_width(Serial, Count) -> tag_field_width(Serial / 10, Count + 1).
 
-generate_command_tag(#state{ command_serial = Serial } = State) ->
-    Tag = list_to_binary(io_lib:format("EG~*..0B", [tag_field_width(Serial), Serial])),
-    { State#state{ command_serial = Serial + 1 }, Tag }.
-
 create_socket(Host, Port, true) -> ssl:connect(Host, Port, [binary, {active, once}], 1000);
 create_socket(Host, Port, _) -> gen_tcp:connect(Host, Port, [binary, {active, once}], 1000).
 
@@ -196,11 +186,12 @@ send_command(Command, #state{ tls = true} = State) ->
 send_command(Command, State) ->
     send_command(fun gen_tcp:send/2, Command, State).
 
-send_command(Fun, #command{ tag = Tag, message = Message } = Command, #state{ socket = Socket } = State) ->
+send_command(Fun, #command{ message = Message } = Command, #state{ command_serial = Serial, socket = Socket } = State) ->
+    Tag = list_to_binary(io_lib:format("EG~*..0B", [tag_field_width(Serial), Serial])),
     Data = <<Tag/binary, " ", Message/binary, "\n">>,
-    lager:info("Sending command over SSL: ~s", [Data]),
+    %%lager:info("Sending command via ~p: ~s", [Fun, Data]),
     Fun(Socket, Data),
-    State#state{ current_command = Command }.
+    State#state{ command_serial = Serial + 1, current_command = Command#command{ tag = Tag } }.
 
 enque_command(Command, State) ->
     lager:info("Enqueuing command ~p", [Command]),

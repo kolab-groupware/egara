@@ -16,12 +16,18 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara_imap_parser_annotation).
--export([parse/1]).
+-export([new/1, parse/1]).
+
+%% Public API
+new(Folder) when is_binary(Folder) ->
+    Message = <<"GETANNOTATION ", Folder/binary, " \"*\" \"value.shared\"">>.
 
 parse(Data) when is_binary(Data) ->
     Lines = binary:split(Data, <<"\r\n">>, [global]),
     lists:foldl(fun parseLine/2, [], Lines).
 
+
+%% Private API
 parseLine(<<"* ANNOTATION", Data/binary>>, Acc) ->
     Pieces = binary:split(Data, <<"\"">>, [global]),
     process_pieces(Pieces, Acc);

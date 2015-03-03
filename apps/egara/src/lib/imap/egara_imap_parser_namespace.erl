@@ -16,12 +16,18 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara_imap_parser_namespace).
--export([parse/1]).
+-export([new/0, parse/1]).
+
+%% http://tools.ietf.org/html/rfc2342
+
+%% Public API
+new() -> <<"NAMESPACE">>.
 
 parse(<<"* NAMESPACE ", Data/binary>>) ->
     NamespaceParts = process_shared_prefix_parts(Data, 1),
     relevant_shared_prefix_parts(NamespaceParts).
 
+%% Private API
 relevant_shared_prefix_parts([]) -> { none, none};
 relevant_shared_prefix_parts([[], [], _]) -> { none, none };
 relevant_shared_prefix_parts([[], Delim]) -> { none, Delim };
