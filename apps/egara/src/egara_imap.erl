@@ -27,7 +27,9 @@
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 
 %% state record definition
--record(state, { host, port, tls, user, pass, authed = false, socket = none, command_serial = 1, command_queue = queue:new() }).
+-record(state, { host, port, tls, user, pass, authed = false, socket = none,
+                 command_serial = 1, command_queue = queue:new(),
+                 shared_prefix = none, hierarchy_delim = none }).
 -record(command, { message, from }).
 
 
@@ -51,6 +53,7 @@ init(_Args) ->
                 user = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
                 pass = list_to_binary(proplists:get_value(pass, AdminConnConfig, ""))
               },
+    gen_fsm:send_all_state_event(self(), { get_shared_prefix, self() }),
     { ok, disconnected, State }.
 
 disconnected(connect, #state{ host = Host, port = Port, tls = TLS, socket = none } = State) ->
@@ -105,14 +108,26 @@ idle(_Event, State) ->
 
 wait_response({ data, Data }, State) ->
     lager:info("Waiting for a response, server sent: ~p", [Data]),
+    %%TODO: this case statement is going to quickly get ugly with all the message possibilities
+    NewState =
+    case Data of
+        <<"* NAMESPACE ", _/binary>> ->
+            { SharedPrefix, Delim } = egara_imap_parser_namespace:parse(Data),
+            State#state{ shared_prefix = SharedPrefix, hierarchy_delim = Delim };
+        _ -> State
+    end,
     gen_fsm:send_event(self(), process_command_queue),
-    { next_state, idle, State }.
+    { next_state, idle, NewState }.
 
 handle_event(disconnect, _StateName, State) ->
     close_socket(State),
     { next_state, disconnected, reset_state(State) };
 handle_event({ get_folder_annotations, From, Folder }, StateName, State) ->
     Command = #command{ message = <<"GETANNOTATION ", Folder/binary, " \"*\" \"value.shared\"">>, from = From },
+    ?MODULE:StateName(Command, State);
+handle_event({ get_shared_prefix, From }, StateName, State) ->
+    %% http://tools.ietf.org/html/rfc2342
+    Command = #command{ message = <<"NAMESPACE">>, from = From },
     ?MODULE:StateName(Command, State);
 handle_event(_Event, StateName, State) -> { next_state, StateName, State}.
 
@@ -135,7 +150,7 @@ handle_info({tcp_closed, Socket}, _StateName, #state{ socket = Socket, host = Ho
     { stop, normal, State };
 
 handle_info(_Info, StateName, State) ->
-        { noreply, StateName, State }.
+    { next_state, StateName, State }.
 
 terminate(_Reason, _Statename, State) -> close_socket(State), ok.
 
