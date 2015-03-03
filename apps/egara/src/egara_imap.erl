@@ -20,7 +20,7 @@
 -behaviour(gen_fsm).
 
 %% API
--export([start_link/0, connect/1, disconnect/1, get_folder_annotations/3]).
+-export([start_link/0, connect/1, disconnect/1, get_folder_annotations/4]).
 
 %% gen_fsm callbacks
 -export([disconnected/2, authenticate/2, authenticating/2, idle/2, wait_response/2]).
@@ -28,19 +28,18 @@
 
 %% state record definition
 -record(state, { host, port, tls, user, pass, authed = false, socket = none,
-                 command_serial = 1, command_queue = queue:new(),
-                 shared_prefix = none, hierarchy_delim = none }).
--record(command, { message, from }).
-
+                 command_serial = 1, command_queue = queue:new(), current_command = none,
+                 shared_prefix = none, hierarchy_delim = "/" }).
+-record(command, { tag, message, from = none, response_token = none }).
 
 %% public API
 start_link() -> gen_fsm:start_link(?MODULE, [], []).
 connect(PID) -> gen_fsm:send_event(PID, connect).
 disconnect(PID) -> gen_fsm:send_all_state_event(PID, disconnect).
-get_folder_annotations(PID, From, Folder) when is_list(Folder) ->
-    get_folder_annotations(PID, From, list_to_binary(Folder));
-get_folder_annotations(PID, From, Folder) when is_binary(Folder) ->
-    gen_fsm:send_all_state_event(PID, { get_folder_annotations, From, Folder }).
+get_folder_annotations(PID, From, ResponseToken, Folder) when is_list(Folder) ->
+    get_folder_annotations(PID, From, ResponseToken, list_to_binary(Folder));
+get_folder_annotations(PID, From, ResponseToken, Folder) when is_binary(Folder) ->
+    gen_fsm:send_all_state_event(PID, { get_folder_annotations, From, ResponseToken, Folder }).
 
 %% gen_server API
 init(_Args) -> 
@@ -53,7 +52,7 @@ init(_Args) ->
                 user = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
                 pass = list_to_binary(proplists:get_value(pass, AdminConnConfig, ""))
               },
-    gen_fsm:send_all_state_event(self(), { get_shared_prefix, self() }),
+    gen_fsm:send_all_state_event(self(), { get_shared_prefix, self(), get_shared_prefix }),
     { ok, disconnected, State }.
 
 disconnected(connect, #state{ host = Host, port = Port, tls = TLS, socket = none } = State) ->
@@ -67,8 +66,11 @@ disconnected(Command, State) when is_record(Command, command) ->
     { next_state, disconnected, enque_command(Command, State) }.
 
 authenticate({ data, _Data }, #state{ user = User, pass = Pass, authed = false } = State) ->
-    NextState = send_command(<<"LOGIN ", User/binary, " ", Pass/binary>>, State),
-    { next_state, authenticating, NextState#state{ authed = in_process } };
+    { NewState, Tag } = generate_command_tag(State),
+    Message = <<"LOGIN ", User/binary, " ", Pass/binary>>,
+    Command = #command{ tag = Tag, message = Message },
+    send_command(Command, State),
+    { next_state, authenticating, NewState#state{ authed = in_process } };
 authenticate(Command, State) when is_record(Command, command) ->
     { next_state, authenticate, enque_command(Command, State) }.
 
@@ -89,66 +91,71 @@ authenticating(Command, State) when is_record(Command, command) ->
 
 idle(process_command_queue, #state{ command_queue = Queue } = State) ->
     case queue:out(Queue) of
-       { { value, #command{ message = Message, from = From } }, ModifiedQueue } ->
-            lager:info("Clearing queue of ~p", [Message]),
-            NextState = send_command(Message, State),
-            { next_state, wait_response, NextState#state{ command_queue = ModifiedQueue } };
+       { { value, Command }, ModifiedQueue } when is_record(Command, command) ->
+            lager:info("Clearing queue of ~p", [Command]),
+            NewState = send_command(Command, State),
+            { next_state, wait_response, NewState#state{ command_queue = ModifiedQueue } };
        { empty, ModifiedQueue } ->
             { next_state, idle, State#state{ command_queue = ModifiedQueue } }
     end;
 idle({ data, Data }, State) ->
     lager:info("Idling, server sent: ~p", [Data]),
     { next_state, idle, State };
-idle(#command{ message = Message, from = From }, State) ->
+idle(Command, State) when is_record(Command, command) ->
     lager:info("Idling"),
-    NextState = send_command(Message, State),
-    { next_state, wait_response, NextState };
+    NewState = send_command(Command, State),
+    { next_state, wait_response, NewState };
 idle(_Event, State) ->
     { next_state, idle, State }.
 
 wait_response({ data, Data }, State) ->
-    lager:info("Waiting for a response, server sent: ~p", [Data]),
+    %%lager:info("Waiting for a response, server sent: ~p", [Data]),
     %%TODO: this case statement is going to quickly get ugly with all the message possibilities
-    NewState =
+    Response  =
     case Data of
         <<"* NAMESPACE ", _/binary>> ->
-            { SharedPrefix, Delim } = egara_imap_parser_namespace:parse(Data),
-            State#state{ shared_prefix = SharedPrefix, hierarchy_delim = Delim };
-        _ -> State
+            egara_imap_parser_namespace:parse(Data);
+        <<"* ANNOTATION ", _/binary>> ->
+            egara_imap_parser_annotation:parse(Data);
+        _ -> none
     end,
+    notify_of_response(Response, State),
     gen_fsm:send_event(self(), process_command_queue),
-    { next_state, idle, NewState }.
+    { next_state, idle, State }.
 
 handle_event(disconnect, _StateName, State) ->
     close_socket(State),
     { next_state, disconnected, reset_state(State) };
-handle_event({ get_folder_annotations, From, Folder }, StateName, State) ->
-    Command = #command{ message = <<"GETANNOTATION ", Folder/binary, " \"*\" \"value.shared\"">>, from = From },
-    ?MODULE:StateName(Command, State);
-handle_event({ get_shared_prefix, From }, StateName, State) ->
+handle_event({ get_folder_annotations, From, ResponseToken, Folder }, StateName, State) ->
+    { NewState, Tag } = generate_command_tag(State),
+    Message = <<"GETANNOTATION ", Folder/binary, " \"*\" \"value.shared\"">>,
+    Command = #command{ tag = Tag, message = Message, from = From, response_token = ResponseToken },
+    ?MODULE:StateName(Command, NewState);
+handle_event({ get_shared_prefix, From, ResponseToken }, StateName, State) ->
     %% http://tools.ietf.org/html/rfc2342
-    Command = #command{ message = <<"NAMESPACE">>, from = From },
-    ?MODULE:StateName(Command, State);
+    { NewState, Tag } = generate_command_tag(State),
+    Command = #command{ tag = Tag, message = <<"NAMESPACE">>, from = From, response_token = ResponseToken },
+    ?MODULE:StateName(Command, NewState);
 handle_event(_Event, StateName, State) -> { next_state, StateName, State}.
 
 handle_sync_event(_Event, _From, StateName, State) -> { next_state, StateName, State}.
 
 handle_info({ ssl, Socket, Bin }, StateName, #state{ socket = Socket } = State) ->
     % Flow control: enable forwarding of next TCP message
-    lager:info("Received from server: ~p", [Bin]),
+    %lager:info("Received from server: ~p", [Bin]),
     ssl:setopts(Socket, [{ active, once }]),
     ?MODULE:StateName({ data, Bin }, State);
-
 handle_info({ tcp, Socket, Bin }, StateName, #state{ socket = Socket } = State) ->
     % Flow control: enable forwarding of next TCP message
     lager:info("Got us ~p", [Bin]),
     inet:setopts(Socket, [{ active, once }]),
     ?MODULE:StateName({ data, Bin }, State);
-
 handle_info({tcp_closed, Socket}, _StateName, #state{ socket = Socket, host = Host } = State) ->
     lager:info("~p Client ~p disconnected.\n", [self(), Host]),
     { stop, normal, State };
-
+handle_info({ get_shared_prefix, { SharedPrefix, Delim } }, StateName, State) ->
+    %%lager:info("Prefixes .... ~p ~p", [SharedPrefix, Delim]),
+    { next_state, StateName, State#state{ shared_prefix = SharedPrefix, hierarchy_delim = Delim } };
 handle_info(_Info, StateName, State) ->
     { next_state, StateName, State }.
 
@@ -157,6 +164,12 @@ terminate(_Reason, _Statename, State) -> close_socket(State), ok.
 code_change(_OldVsn, Statename, State, _Extra) -> { ok, Statename, State }.
 
 %% private API
+notify_of_response(none, _State) -> ok;
+notify_of_response(_Response, #state{ current_command = #command { from = none } }) -> ok;
+notify_of_response(Response, #state{ current_command = #command { from = From, response_token = none } }) -> From ! Response;
+notify_of_response(Response, #state{ current_command = #command { from = From, response_token = Token } }) -> From ! { Token, Response };
+notify_of_response(_, _) -> ok.
+
 tag_field_width(Serial) when Serial < 10000 -> 4;
 tag_field_width(Serial) -> tag_field_width(Serial / 10000, 5).
 tag_field_width(Serial, Count) when Serial < 10 -> Count;
@@ -175,23 +188,19 @@ close_socket(#state{ socket = Socket }) -> gen_tcp:close(Socket).
 
 reset_state(State) -> State#state{ socket = none, authed = false, command_serial = 1 }.
 
-send_command(Command, State) when is_list(Command) ->
-    lager:info("Warning! Turning a command string into a binary!"),
-    send_command(list_to_binary(Command), State);
 send_command(Command, #state{ socket = none } = State) ->
     lager:warning("Not connected, dropping command on floor: ~s", [Command]),
     State;
-send_command(Command, #state{ socket = Socket, tls = true} = State) ->
-    { NextState, CommandTag } = generate_command_tag(State),
-    Data = <<CommandTag/binary, " ", Command/binary, "\n">>,
+send_command(Command, #state{ tls = true} = State) ->
+    send_command(fun ssl:send/2, Command, State);
+send_command(Command, State) ->
+    send_command(fun gen_tcp:send/2, Command, State).
+
+send_command(Fun, #command{ tag = Tag, message = Message } = Command, #state{ socket = Socket } = State) ->
+    Data = <<Tag/binary, " ", Message/binary, "\n">>,
     lager:info("Sending command over SSL: ~s", [Data]),
-    ssl:send(Socket, Data),
-    NextState;
-send_command(Command, #state{ socket = Socket } = State) ->
-    lager:info("Sending command: ~s", [Command]),
-    { NextState, CommandTag } = generate_command_tag(State),
-    gen_tcp:send(Socket, <<CommandTag, Command, "\n">>),
-    NextState.
+    Fun(Socket, Data),
+    State#state{ current_command = Command }.
 
 enque_command(Command, State) ->
     lager:info("Enqueuing command ~p", [Command]),
