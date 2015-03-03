@@ -44,7 +44,7 @@ get_folder_annotations(PID, From, Folder) when is_binary(Folder) ->
 
 %% gen_server API
 init(_Args) -> 
-    Config = application:get_env(egara, cyrus, []),
+    Config = application:get_env(egara, imap, []),
     AdminConnConfig = proplists:get_value(admin_connection, Config, []),
     State = #state {
                 host = proplists:get_value(host, AdminConnConfig, ""),
