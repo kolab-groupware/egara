@@ -61,7 +61,7 @@ bindSocket(SocketPath) ->
 
     case procket:bind(Socket, Sun) of
         ok ->
-            file:change_mode(SocketPath, 8#777)), %% FIXME: tighten these permissions down? at least complain on error
+            file:change_mode(SocketPath, 8#777), %% FIXME: tighten these permissions down? at least complain on error
             spawn(fun() -> supervisor:start_child(egara_sup, { ?MODULE, { ?MODULE, launchRecvCyrusNotification, [Socket] }, permanent, 5000, worker, [?MODULE]}) end),
               ok;
         { error, PosixError } -> lager:error("Could not bind to notification socket; error is: ~p", [PosixError]), error
