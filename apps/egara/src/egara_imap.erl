@@ -20,7 +20,7 @@
 -behaviour(gen_fsm).
 
 %% API
--export([start_link/0, connect/1, disconnect/1, get_folder_annotations/4]).
+-export([start_link/1, connect/1, disconnect/1, get_folder_annotations/4]).
 
 %% gen_fsm callbacks
 -export([disconnected/2, authenticate/2, authenticating/2, idle/2, wait_response/2]).
@@ -33,7 +33,7 @@
 -record(command, { tag, message, from = none, response_token = none }).
 
 %% public API
-start_link() -> gen_fsm:start_link(?MODULE, [], []).
+start_link(_Args) -> gen_fsm:start_link(?MODULE, [], []).
 connect(PID) -> gen_fsm:send_event(PID, connect).
 disconnect(PID) -> gen_fsm:send_all_state_event(PID, disconnect).
 get_folder_annotations(PID, From, ResponseToken, Folder) when is_list(Folder) ->
