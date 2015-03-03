@@ -39,7 +39,7 @@ disconnect(PID) -> gen_fsm:send_all_state_event(PID, disconnect).
 get_folder_annotations(PID, From, ResponseToken, Folder) when is_list(Folder) ->
     get_folder_annotations(PID, From, ResponseToken, list_to_binary(Folder));
 get_folder_annotations(PID, From, ResponseToken, Folder) when is_binary(Folder) ->
-    gen_fsm:send_all_state_event(PID, { ready_command, egara_imap_parser_annotation:new(Folder), From, ResponseToken }).
+    gen_fsm:send_all_state_event(PID, { ready_command, egara_imap_command_annotation:new(Folder), From, ResponseToken }).
 
 %% gen_server API
 init(_Args) -> 
@@ -52,11 +52,11 @@ init(_Args) ->
                 user = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
                 pass = list_to_binary(proplists:get_value(pass, AdminConnConfig, ""))
               },
-    gen_fsm:send_all_state_event(self(), { ready_command, egara_imap_parser_namespace:new(), self(), get_shared_prefix }),
+    gen_fsm:send_all_state_event(self(), { ready_command, egara_imap_command_namespace:new(), self(), get_shared_prefix }),
     { ok, disconnected, State }.
 
 disconnected(connect, #state{ host = Host, port = Port, tls = TLS, socket = none } = State) ->
-    lager:info("~p:  Connecting to ~p:~p", [connect, Host, Port]),
+    %%lager:info("~p:  Connecting to ~p:~p", [connect, Host, Port]),
     {ok, Socket} = create_socket(Host, Port, TLS),
     { next_state, authenticate, State#state { socket = Socket } };
 disconnected(connect, State) ->
@@ -114,9 +114,9 @@ wait_response({ data, Data }, State) ->
     Response  =
     case Data of
         <<"* NAMESPACE ", _/binary>> ->
-            egara_imap_parser_namespace:parse(Data);
+            egara_imap_command_namespace:parse(Data);
         <<"* ANNOTATION ", _/binary>> ->
-            egara_imap_parser_annotation:parse(Data);
+            egara_imap_command_annotation:parse(Data);
         _ -> none
     end,
     notify_of_response(Response, State),
@@ -128,7 +128,6 @@ handle_event(disconnect, _StateName, State) ->
     { next_state, disconnected, reset_state(State) };
 handle_event({ ready_command, Message, From, ResponseToken }, StateName, State) ->
     Command = #command{ message = Message, from = From, response_token = ResponseToken },
-    lager:info("UUUuuuuuuuuuuuuuuuuuh ~p", [ Command ]),
     ?MODULE:StateName(Command, State);
 handle_event(_Event, StateName, State) -> { next_state, StateName, State}.
 
@@ -194,6 +193,6 @@ send_command(Fun, #command{ message = Message } = Command, #state{ command_seria
     State#state{ command_serial = Serial + 1, current_command = Command#command{ tag = Tag } }.
 
 enque_command(Command, State) ->
-    lager:info("Enqueuing command ~p", [Command]),
+    %%lager:info("Enqueuing command ~p", [Command]),
     State#state { command_queue = queue:in(Command, State#state.command_queue) }.
 
