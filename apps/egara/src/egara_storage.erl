@@ -127,5 +127,5 @@ ensure_connected(State) ->
 
 historical_users_bucket() -> { <<"egara-lww">>, <<"users">> }.
 current_user_bucket() -> { <<"egara-unique">>, <<"current_users">> }.
-notification_bucket() -> { <<"egara-lww">>, <<"notifications">> }.
+notification_bucket() -> { <<"egara-lww">>, <<"imap-events">> }.
 json_type() -> <<"application/json">>.
