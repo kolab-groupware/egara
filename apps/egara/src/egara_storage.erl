@@ -60,7 +60,7 @@ handle_call({ store_userdata, UserLogin, UserData }, From, State) when is_list(U
 handle_call({ store_userdata, UserLogin, UserData }, _From, State) ->
     UserId = erlang:list_to_binary(proplists:get_value(<<"id">>, UserData, "")),
     TS = erlang:list_to_binary(egara_utils:current_timestamp()),
-    Key = <<UserLogin/binary, "::", TS/binary, "::", UserId/binary>>,
+    Key = <<UserId/binary, "::", TS/binary, "::", UserLogin/binary>>,
     Json = jsx:encode([ { <<"user">>, UserLogin } | UserData ]),
     Storable = riakc_obj:new(historical_users_bucket(), Key, Json, json_type()),
     NewState = ensure_connected(State),
