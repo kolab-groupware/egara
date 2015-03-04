@@ -66,7 +66,7 @@ handle_call({ store_userdata, UserLogin, UserData }, _From, State) ->
     NewState = ensure_connected(State),
     case riakc_pb_socket:put(NewState#state.riak_connection, Storable) of
         ok -> 
-            CurrentStorable = riakc_obj:new(current_user_bucket(), UserLogin, Json, json_type()),
+            CurrentStorable = riakc_obj:new(current_users_bucket(), UserLogin, Json, json_type()),
             case riakc_pb_socket:put(NewState#state.riak_connection, CurrentStorable) of
                 ok -> { reply, ok, NewState };
                 Rv -> lager:warning("Failed to store current user data: ~p", [Rv]), { reply, error, NewState }
@@ -78,7 +78,7 @@ handle_call({ fetch_userdata, UserLogin } , From, State) when is_list(UserLogin)
     handle_call({ store_userdata, erlang:list_to_binary(UserLogin) }, From, State);
 handle_call({ fetch_userdata, UserLogin }, _From, State) when is_binary(UserLogin) ->
     NewState = ensure_connected(State),
-    RiakResponse = riakc_pb_socket:get(NewState#state.riak_connection, current_user_bucket(), UserLogin),
+    RiakResponse = riakc_pb_socket:get(NewState#state.riak_connection, current_users_bucket(), UserLogin),
     case RiakResponse of
         { ok, Obj } ->
             Value = riakc_obj:get_value(Obj),
@@ -126,6 +126,6 @@ ensure_connected(State) ->
     State.
 
 historical_users_bucket() -> { <<"egara-lww">>, <<"users">> }.
-current_user_bucket() -> { <<"egara-unique">>, <<"current_users">> }.
+current_users_bucket() -> { <<"egara-unique">>, <<"current-users">> }.
 notification_bucket() -> { <<"egara-lww">>, <<"imap-events">> }.
 json_type() -> <<"application/json">>.
