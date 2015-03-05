@@ -26,7 +26,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -define(BATCH_SIZE, 500).
 
--record(state, { event_mapping, storage }).
+-record(state, { event_mapping, storage, admin_user_prefix }).
 
 start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
 
@@ -35,7 +35,12 @@ init(_Args) ->
     %% event (e.g. imap_mesage_event) for routing the notifications through the handler
     EventMapping = transform_events_config_to_dict(application:get_env(events_to_track)),
     { ok, Storage } = egara_storage:start_link(),
-    State = #state{ event_mapping = EventMapping, storage = Storage },
+    %% get the admin user, whose events we will ignore
+    Config = application:get_env(egara, imap, []),
+    AdminConnConfig = proplists:get_value(admin_connection, Config, []),
+    AdminUser = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
+    AdminUserPrefix = <<AdminUser/binary, "@">>,
+    State = #state{ event_mapping = EventMapping, storage = Storage, admin_user_prefix = AdminUserPrefix },
     { ok, State }.
 
 handle_call(_Request, _From, State) ->
@@ -114,7 +119,7 @@ notification_assigned(State, { Key, Notification } ) ->
     EventType = proplists:get_value(<<"event">>, Notification),
     EventCategory = dict:find(EventType, State#state.event_mapping),
     %%lager:info("Type is ~p which maps to ~p", [EventType, EventCategory]),
-    Result = process_notification_by_category(State#state.storage, Notification, EventCategory),
+    Result = process_notification_by_category(State, Notification, EventCategory),
     post_process_event(Key, Result).
 
 post_process_event(Key, { get_mailbox_metadata, Notification }) ->
@@ -144,11 +149,13 @@ post_process_event(Key, _) ->
     egara_notification_queue:release(Key, self()),
     error.
 
-process_notification_by_category(Storage, Notification, { ok, Type }) ->
+process_notification_by_category(State, Notification, { ok, Type }) when is_record(State, state) ->
     %% this version, with the { ok, _ } tuple is called due to maps:find returning { ok, Value }
     %% it is essentiall a forwarder to other impls below
-    NotificationWithUsername = ensure_username(Storage, Notification, proplists:get_value(<<"user">>, Notification)),
-    process_notification_by_category(Storage, NotificationWithUsername, Type);
+    NotificationWithUsername = ensure_username(State, Notification, proplists:get_value(<<"user">>, Notification)),
+    process_notification_by_category(State#state.storage, NotificationWithUsername, Type);
+process_notification_by_category(_, ignore, _) ->
+    ignoring;
 process_notification_by_category(Storage, Notification, imap_message_event) ->
     MessageId = message_from_notification(Notification),
     Timestamp = timestamp_from_notification(Notification),
@@ -157,9 +164,10 @@ process_notification_by_category(Storage, Notification, imap_message_event) ->
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
     URI = proplists:get_value(<<"uri">>, Notification, <<"">>),
+    %%TODO: use PROPER shared prefix (from IMAP)
     Folder = list_to_binary(egara_imap_utils:extract_path_from_uri(none, "/", binary_to_list(URI))),
     FromStorage = egara_storage:fetch_folder_uid(Storage, Folder),
-    lager:info("Storage said ... ~p", [FromStorage]),
+    %%lager:info("Storage said ... ~p", [FromStorage]),
     case FromStorage of
         notfound ->
             { get_mailbox_metadata, Notification };
@@ -205,12 +213,16 @@ message_from_notification(Notification) ->
     %%TODO: proper message UID
     proplists:get_value(<<"uri">>, Notification, <<"unknown_message">>).
 
-ensure_username(_Storage, Notification, undefined) ->
+ensure_username(_State, Notification, undefined) ->
     Notification;
-ensure_username(Storage, Notification, UserLogin) ->
-    FromStorage = egara_storage:fetch_userdata_for_login(Storage, UserLogin),
-    %%lager:info("Storage said ... ~p", [FromStorage]),
-    add_username_from_storage(Storage, Notification, UserLogin, FromStorage).
+ensure_username(State, Notification, UserLogin) ->
+    case binary:match(UserLogin, State#state.admin_user_prefix) of
+        nomatch ->
+            FromStorage = egara_storage:fetch_userdata_for_login(State#state.storage, UserLogin),
+            %%lager:info("Storage said ... ~p", [FromStorage]),
+            add_username_from_storage(State#state.storage, Notification, UserLogin, FromStorage);
+        _ -> ignore
+    end.
 
 add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
     LDAP = poolboy:checkout(egara_ldap_pool, false, 10),
