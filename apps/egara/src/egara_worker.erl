@@ -121,6 +121,7 @@ post_process_event(Key, { get_mailbox_metadata, Notification }) ->
     case poolboy:checkout(egara_imap_pool, false, 10) of
         IMAP when is_pid(IMAP) ->
             URI = proplists:get_value(<<"uri">>, Notification, <<"">>),
+            %%TODO: use PROPER shared prefix (from IMAP)
             Folder = list_to_binary(egara_imap_utils:extract_path_from_uri(none, "/", binary_to_list(URI))),
             lager:info("fetchng mailbox info over IMAP for ~p", [Folder]),
             egara_imap:connect(IMAP),
