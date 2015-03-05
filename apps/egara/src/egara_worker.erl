@@ -128,9 +128,10 @@ post_process_event(Key, { get_mailbox_metadata, Notification }) ->
             URI = proplists:get_value(<<"uri">>, Notification, <<"">>),
             %%TODO: use PROPER shared prefix (from IMAP)
             Folder = list_to_binary(egara_imap_utils:extract_path_from_uri(none, "/", binary_to_list(URI))),
-            lager:info("fetchng mailbox info over IMAP for ~p", [Folder]),
-            egara_imap:connect(IMAP),
-            egara_imap:get_folder_annotations(IMAP, self(), { imap_mailbox_metadata, Folder, Key, Notification }, Folder);
+            %%lager:info("fetchng mailbox info over IMAP for ~p", [Folder]),
+            egara_imap:connect(IMAP), %%TODO, this should be done less often, even though it's nearly a noop here
+            egara_imap:get_folder_annotations(IMAP, self(), { imap_mailbox_metadata, Folder, Key, Notification }, Folder),
+            poolboy:checkin(egara_imap_pool, IMAP);
         _ ->
             lager:error("Could not find an IMAP worker to use"),
             error
