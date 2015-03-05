@@ -1,1 +1,1 @@
-{"event":"MailboxSubscribe","timestamp":"2015-02-23T18:37:02.344+01:00","service":"imap","uri":"imap://john.doe@example.org@kolab.example.org/Testfolder_renamed","pid":3004,"user":"john.doe@example.org","vnd.cmu.sessionId":"kolab.example.org-3004-1424713022-1-7149274646509524617"}
+{"event":"MailboxSubscribe","timestamp":"2015-02-23T18:37:02.344+01:00","service":"imap","uri":"imap://john.doe@example.org@kolab.example.org/Archive","pid":3004,"user":"john.doe@example.org","vnd.cmu.sessionId":"kolab.example.org-3004-1424713022-1-7149274646509524617"}
