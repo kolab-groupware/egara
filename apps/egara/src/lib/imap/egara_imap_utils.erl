@@ -30,6 +30,8 @@ extract_path_from_uri(SharedPrefix, HierarchyDelim, URI) when is_list(URI) ->
 
 %% Private
 
+imap_folder_path_from_parts(none, _HierarchyDelim, none, _Domain, Path) ->
+    Path;
 imap_folder_path_from_parts(SharedPrefix, _HierarchyDelim, none, _Domain, Path) ->
     case SharedPrefix == string:chars(length(SharedPrefix), Path) of
         true -> string:sub_str(Path, length(SharedPrefix));
