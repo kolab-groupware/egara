@@ -34,7 +34,7 @@
 
 %% public API
 start_link(_Args) -> gen_fsm:start_link(?MODULE, [], []).
-connect(PID) -> gen_fsm:send_event(PID, connect).
+connect(PID) -> gen_fsm:send_all_state_event(PID, connect).
 disconnect(PID) -> gen_fsm:send_all_state_event(PID, disconnect).
 get_folder_annotations(PID, From, ResponseToken, Folder) when is_list(Folder) ->
     get_folder_annotations(PID, From, ResponseToken, list_to_binary(Folder));
@@ -56,12 +56,9 @@ init(_Args) ->
     { ok, disconnected, State }.
 
 disconnected(connect, #state{ host = Host, port = Port, tls = TLS, socket = none } = State) ->
-    %%lager:info("~p:  Connecting to ~p:~p", [connect, Host, Port]),
+    %%lager:info("Imap worker: Connecting to ~p:~p", [Host, Port]),
     {ok, Socket} = create_socket(Host, Port, TLS),
     { next_state, authenticate, State#state { socket = Socket } };
-disconnected(connect, State) ->
-    lager:warning("Already connected to IMAP server!"),
-    { next_state, authenticate, State };
 disconnected(Command, State) when is_record(Command, command) ->
     { next_state, disconnected, enque_command(Command, State) }.
 
@@ -98,10 +95,10 @@ idle(process_command_queue, #state{ command_queue = Queue } = State) ->
             { next_state, idle, State#state{ command_queue = ModifiedQueue } }
     end;
 idle({ data, Data }, State) ->
-    lager:info("Idling, server sent: ~p", [Data]),
+    %%lager:info("Idling, server sent: ~p", [Data]),
     { next_state, idle, State };
 idle(Command, State) when is_record(Command, command) ->
-    lager:info("Idling"),
+    %%lager:info("Idling"),
     NewState = send_command(Command, State),
     { next_state, wait_response, NewState };
 idle(_Event, State) ->
@@ -123,11 +120,18 @@ wait_response({ data, Data }, State) ->
     gen_fsm:send_event(self(), process_command_queue),
     { next_state, idle, State }.
 
+handle_event(connect, disconnected, State) ->
+    gen_fsm:send_event(self(), connect),
+    { next_state, disconnected, State };
+handle_event(connect, _Statename, State) ->
+    lager:info("Already connected to IMAP server!"),
+    { next_state, _Statename, State };
 handle_event(disconnect, _StateName, State) ->
     close_socket(State),
     { next_state, disconnected, reset_state(State) };
 handle_event({ ready_command, Message, From, ResponseToken }, StateName, State) ->
     Command = #command{ message = Message, from = From, response_token = ResponseToken },
+    %%lager:info("Making command .. ~p", [Command]),
     ?MODULE:StateName(Command, State);
 handle_event(_Event, StateName, State) -> { next_state, StateName, State}.
 
@@ -140,7 +144,7 @@ handle_info({ ssl, Socket, Bin }, StateName, #state{ socket = Socket } = State) 
     ?MODULE:StateName({ data, Bin }, State);
 handle_info({ tcp, Socket, Bin }, StateName, #state{ socket = Socket } = State) ->
     % Flow control: enable forwarding of next TCP message
-    lager:info("Got us ~p", [Bin]),
+    %%lager:info("Got us ~p", [Bin]),
     inet:setopts(Socket, [{ active, once }]),
     ?MODULE:StateName({ data, Bin }, State);
 handle_info({tcp_closed, Socket}, _StateName, #state{ socket = Socket, host = Host } = State) ->

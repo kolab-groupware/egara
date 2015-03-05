@@ -28,16 +28,18 @@ the time of retrieval for a given user. This data is stored both in a
 timestamped set of records as well as a special "current" record. The latter
 facilitates quick look ups.
 
-The key formats are:
+The record formats are:
 
-    <User Login>::<Timestamp>::<LDAP UserId>
-    <User Login>::current
+    Bucket Type     Bucket          Key Format
+    -----------     ------          ----------
+    egara-lww       users           <LDAP User Id>::<Timestamp>::<IMAP Login>
+    egara-unique    current-users   <IMAP Login>
 
 The data stored is a JSON representation of the user's LDAP record:
 
     EXAMPLE NEEDED
 
-== "imap_folders"
+== "imap-folders"
 
 Data stored in this bucket are JSON representations of the folder name and relevant
 metadata at the time of retrieval, creating a timeline for the given folder.
@@ -45,14 +47,16 @@ A copy of the most recent data is also stored.
 
 The keys used are:
 
-    <Folder Path>::<Timestamp>::<Folder UID>
-    <Folder Path>::current
+    Bucket Type     Bucket          Key Format
+    -----------     ------          ----------
+    egara-lww       imap-folders    <Folder UID>::<Timestamp>::<Folder Path>
+    egara-unique    current-folders <Folder Path>
 
 Example of the data stored:
 
     EXAMPLE NEEDED
 
-== "imap_events"
+== "imap-events"
 
 The data in this bucket are JSON representations of individual events that
 occure in the IMAP data store. These include:

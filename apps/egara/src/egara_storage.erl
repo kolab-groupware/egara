@@ -20,10 +20,12 @@
 -behaviour(gen_server).
 
 %% API
--export([ start_link/1,
+-export([ start_link/0,
           store_notification/3,
           store_userdata/3,
-          fetch_userdata_for_login/2
+          fetch_userdata_for_login/2,
+          store_folder_uid/3,
+          fetch_folder_uid/2
         ]).
 
 %% gen_server callbacks
@@ -34,14 +36,16 @@
 
 
 %% public API
-start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
+start_link() -> gen_server:start_link(?MODULE, [], []).
 store_notification(Pid, Key, Notification) when is_binary(Key) -> gen_server:call(Pid, { store_notification, Key, Notification }).
 store_userdata(Pid, UserLogin, UserData) -> gen_server:call(Pid, { store_userdata, UserLogin, UserData }).
 fetch_userdata_for_login(Pid, UserLogin) -> gen_server:call(Pid, { fetch_userdata, UserLogin }).
+store_folder_uid(Pid, Folder, UID) when is_binary(Folder), is_binary(UID) -> gen_server:call(Pid, { store_folder_uid, Folder, UID }).
+fetch_folder_uid(Pid, Folder) when is_binary(Folder) -> gen_server:call(Pid, { fetch_folder_uid, Folder }).
 
 
 %% gen_server API
-init(_Args) ->
+init(_) ->
     erlang:process_flag(trap_exit, true),
     { ok, #state {} }.
 
@@ -66,7 +70,7 @@ handle_call({ store_userdata, UserLogin, UserData }, _From, State) ->
     NewState = ensure_connected(State),
     case riakc_pb_socket:put(NewState#state.riak_connection, Storable) of
         ok -> 
-            CurrentStorable = riakc_obj:new(current_user_bucket(), UserLogin, Json, json_type()),
+            CurrentStorable = riakc_obj:new(current_users_bucket(), UserLogin, Json, json_type()),
             case riakc_pb_socket:put(NewState#state.riak_connection, CurrentStorable) of
                 ok -> { reply, ok, NewState };
                 Rv -> lager:warning("Failed to store current user data: ~p", [Rv]), { reply, error, NewState }
@@ -74,21 +78,39 @@ handle_call({ store_userdata, UserLogin, UserData }, _From, State) ->
         Rv -> lager:warning("Failed to store user data: ~p", [Rv]), { reply, error, NewState }
     end;
 
-handle_call({ fetch_userdata, UserLogin } , From, State) when is_list(UserLogin) ->
+handle_call({ fetch_userdata, UserLogin }, From, State) when is_list(UserLogin) ->
     handle_call({ store_userdata, erlang:list_to_binary(UserLogin) }, From, State);
 handle_call({ fetch_userdata, UserLogin }, _From, State) when is_binary(UserLogin) ->
     NewState = ensure_connected(State),
-    RiakResponse = riakc_pb_socket:get(NewState#state.riak_connection, current_user_bucket(), UserLogin),
+    RiakResponse = riakc_pb_socket:get(NewState#state.riak_connection, current_users_bucket(), UserLogin),
+    Response =
     case RiakResponse of
         { ok, Obj } ->
             Value = riakc_obj:get_value(Obj),
-            Response =
             try jsx:decode(Value) of
                 Term -> Term
             catch
                 error:_ -> notfound
             end;
-        _ -> Response = notfound
+        _ -> notfound
+    end,
+    { reply, Response, NewState };
+
+handle_call({ store_folder_uid, Folder, UID }, _From, State) when is_binary(Folder), is_binary(UID) ->
+    Storable = riakc_obj:new(current_folders_bucket(), Folder, UID),
+    NewState = ensure_connected(State),
+    Rv = riakc_pb_socket:put(NewState#state.riak_connection, Storable),
+    { reply, Rv, NewState };
+
+handle_call({ fetch_folder_uid, Folder }, From, State) when is_list(Folder) ->
+    handle_call({ fetch_folder_uid, list_to_binary(Folder) }, From, State);
+handle_call({ fetch_folder_uid, Folder }, _From, State) when is_binary(Folder) ->
+    NewState = ensure_connected(State),
+    RiakResponse = riakc_pb_socket:get(NewState#state.riak_connection, current_folders_bucket(), Folder),
+    Response =
+    case RiakResponse of
+        { ok, Obj } -> riakc_obj:get_value(Obj);
+        _ -> notfound
     end,
     { reply, Response, NewState };
 
@@ -126,6 +148,8 @@ ensure_connected(State) ->
     State.
 
 historical_users_bucket() -> { <<"egara-lww">>, <<"users">> }.
-current_user_bucket() -> { <<"egara-unique">>, <<"current_users">> }.
+current_users_bucket() -> { <<"egara-unique">>, <<"current-users">> }.
 notification_bucket() -> { <<"egara-lww">>, <<"imap-events">> }.
+historical_folders_bucket() -> { <<"egara-lww">>, <<"imap-folders">> }.
+current_folders_bucket() -> { <<"egara-lww">>, <<"imap-folders">> }.
 json_type() -> <<"application/json">>.
