@@ -20,12 +20,13 @@
 -behaviour(gen_server).
 
 %% API
--export([ start_link/1
-        ]).
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -define(BATCH_SIZE, 500).
+
+-record(state, { event_mapping, storage }).
 
 start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
 
@@ -33,26 +34,26 @@ init(_Args) ->
     %% EventMapping is a map of event types (e.g. <<"FlagsClear">>) to the type of
     %% event (e.g. imap_mesage_event) for routing the notifications through the handler
     EventMapping = transform_events_config_to_dict(application:get_env(events_to_track)),
-    %%lager:info("We gots us ... ~p", [EventMapping]),
-    { ok, EventMapping }.
+    { ok, Storage } = egara_storage:start_link(),
+    State = #state{ event_mapping = EventMapping, storage = Storage },
+    { ok, State }.
 
 handle_call(_Request, _From, State) ->
     { reply, ok, State }.
 
 handle_cast(process_events, State) ->
-    case poolboy:checkout(egara_storage_pool, false, 10) of
-         Storage when is_pid(Storage) ->
-             %%lager:info("Storing using ~p", [Storage]),
-            process_as_many_events_as_possible(Storage, State, ?BATCH_SIZE),
-            poolboy:checkin(egara_storage_pool, Storage);
-         _ ->
-            lager:warning("Unable to get storage!")
-    end,
+    process_as_many_events_as_possible(State, ?BATCH_SIZE),
     { noreply, State };
 
 handle_cast(_Msg, State) ->
     { noreply, State }.
 
+handle_info({ { imap_mailbox_metadata, NotificationQueueKey, Notification }, Metadata }, State) ->
+    lager:info("Got imap_mailbox_metadata ~p", [Metadata]),
+    UID = proplists:get_value(<<"/vendor/cmu/cyrus-imapd/uniqueid">>, Metadata, undefined),
+    lager:info("UID is ~p", [UID]),
+    store_folder_notification_with_uid(UID, Notification, NotificationQueueKey, State#state.storage),
+    { noreply, State };
 handle_info(_Info, State) ->
     { noreply, State }.
 
@@ -63,6 +64,17 @@ code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 %% private API
+store_folder_notification_with_uid(undefined, Notification, NotificationQueueKey, _Storage) ->
+    lager:warning("Could not find UID for notification ~p", [Notification]),
+    egara_notification_queue:remove(NotificationQueueKey);
+store_folder_notification_with_uid(UID, Notification, NotificationQueueKey, Storage) ->
+    Timestamp = timestamp_from_notification(Notification),
+    Key = <<"mailbox::", UID/binary, "::", Timestamp/binary>>,
+    lager:info("Storing folder notification with key ~p", [Key]),
+    %% TODO: record the folder info in Riak
+    egara_storage:store_notification(Storage, Key, Notification),
+    egara_notification_queue:remove(NotificationQueueKey).
+
 add_events_to_dict(Type, Events, EventMap) when is_list(Events) ->
     F = fun(Event, Map) ->
                 case dict:is_key(Event, Map) of
@@ -79,29 +91,42 @@ transform_events_config_to_dict({ ok, EventConfig }) ->
 transform_events_config_to_dict(_) ->
     dict:new(). %% return an empty map .. this is going to be boring
 
-process_as_many_events_as_possible(_Storage, _EventMapping, 0) ->
+process_as_many_events_as_possible(_State, 0) ->
     egara_notifications_processor:queue_drained(),
     ok;
-process_as_many_events_as_possible(Storage, EventMapping, N) ->
+process_as_many_events_as_possible(State, N) ->
     Status = egara_notification_queue:assign_next(self()),
     %%lager:info("~p is starting to process... ~p", [self(), Key]),
-    case notification_assigned(Storage, EventMapping, Status) of
-        again -> process_as_many_events_as_possible(Storage, EventMapping, N - 1);
+    case notification_assigned(State, Status) of
+        again -> process_as_many_events_as_possible(State, N - 1);
         _ -> ok
     end.
 
-notification_assigned(_Storage, _EventMapping, notfound) ->
+notification_assigned(_State, notfound) ->
     %%lager:info("Checking in ~p", [self()]),
     poolboy:checkin(egara_notification_workers, self()),
     egara_notifications_processor:queue_drained(),
     done;
-notification_assigned(Storage, EventMapping, { Key, Notification } ) ->
+notification_assigned(State, { Key, Notification } ) ->
     EventType = proplists:get_value(<<"event">>, Notification),
-    EventCategory = dict:find(EventType, EventMapping),
+    EventCategory = dict:find(EventType, State#state.event_mapping),
     %%lager:info("Type is ~p which maps to ~p", [EventType, EventCategory]),
-    Result = process_notification_by_category(Storage, Notification, EventCategory),
+    Result = process_notification_by_category(State#state.storage, Notification, EventCategory),
     post_process_event(Key, Result).
 
+post_process_event(Key, { get_mailbox_metadata, Notification }) ->
+    %%TODO: check for a cached value in RIAK first
+    case poolboy:checkout(egara_imap_pool, false, 10) of
+        IMAP when is_pid(IMAP) ->
+            URI = proplists:get_value(<<"uri">>, Notification, <<"">>),
+            Folder = egara_imap_utils:extract_path_from_uri(none, "/", binary_to_list(URI)),
+            lager:info("fetchng mailbox info over IMAP for ~p", [Folder]),
+            egara_imap:connect(IMAP),
+            egara_imap:get_folder_annotations(IMAP, self(), { imap_mailbox_metadata, Key, Notification }, Folder);
+        _ ->
+            lager:error("Could not find an IMAP worker to use"),
+            error
+    end;
 post_process_event(Key, ok) ->
     %%lager:info("Done with ~p", [Key]),
     egara_notification_queue:remove(Key),
@@ -110,7 +135,10 @@ post_process_event(Key, ignoring) ->
     %%lager:info("Ignoring ~p", [Key]),
     egara_notification_queue:remove(Key),
     again;
-post_process_event(_, _) ->
+post_process_event(_, continuing) ->
+    again;
+post_process_event(Key, _) ->
+    egara_notification_queue:release(Key, self()),
     error.
 
 process_notification_by_category(Storage, Notification, { ok, Type }) ->
@@ -125,11 +153,7 @@ process_notification_by_category(Storage, Notification, imap_message_event) ->
     %%lager:info("storing an imap_message_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
 process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
-    MailBoxId = mailbox_from_notification(Notification),
-    Timestamp = timestamp_from_notification(Notification),
-    Key = <<"mailbox::", MailBoxId/binary, "::", Timestamp/binary>>,
-    %%lager:info("storing an imap_mailbox_event with key ~p", [Key]),
-    egara_storage:store_notification(Storage, Key, Notification);
+    { get_mailbox_metadata, Notification };
 process_notification_by_category(Storage, Notification, imap_session_event) ->
     KeyPrefix = key_prefix_for_session_event(proplists:get_value(<<"event">>, Notification, <<"unknown">>)),
     UserId = userid_from_notification(Notification),
@@ -163,10 +187,6 @@ timestamp_from_notification(Notification) ->
         unknown -> erlang:list_to_binary(egara_utils:current_timestamp());
         Timestamp -> Timestamp
     end.
-
-mailbox_from_notification(Notification) ->
-    %%TODO: proper mailbox UID
-    proplists:get_value(<<"mailboxID">>, Notification, <<"unknown_mailbox">>).
 
 message_from_notification(Notification) ->
     %%TODO: proper message UID
