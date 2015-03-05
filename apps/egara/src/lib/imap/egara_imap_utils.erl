@@ -18,11 +18,8 @@
 -module(egara_imap_utils).
 -export([extract_path_from_uri/3]).
 
-%% # Translate the folder name in to a fully qualified folder path such as it
-%% # would be used by a cyrus administrator.
-%% #
-%% # TODO: Assumption #1 is we are using virtual domains, and this domain does
-%% # TODO: Assumption #2 is the mailbox in question is a user mailbox
+%% Translate the folder name in to a fully qualified folder path such as it
+%% would be used by a cyrus administrator.
 extract_path_from_uri(SharedPrefix, HierarchyDelim, URI) when is_list(URI) ->
     lager:info("Parsing ~p", [URI]),
     SchemeDefaults = [{ imap, 143 }, { imaps, 993 }],
