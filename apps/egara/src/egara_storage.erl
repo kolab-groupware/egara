@@ -62,7 +62,7 @@ handle_call({ store_notification, Key, Notification }, _From, State) ->
 handle_call({ store_userdata, UserLogin, UserData }, From, State) when is_list(UserLogin) ->
     handle_call({ store_userdata, erlang:list_to_binary(UserLogin), UserData }, From, State);
 handle_call({ store_userdata, UserLogin, UserData }, _From, State) ->
-    UserId = erlang:list_to_binary(proplists:get_value(<<"id">>, UserData, "")),
+    UserId = proplists:get_value(<<"id">>, UserData, ""),
     TS = erlang:list_to_binary(egara_utils:current_timestamp()),
     Key = <<UserId/binary, "::", TS/binary, "::", UserLogin/binary>>,
     Json = jsx:encode([ { <<"user">>, UserLogin } | UserData ]),

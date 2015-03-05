@@ -122,9 +122,9 @@ create_userdata_query_response(_UserLogin, { ok, #eldap_search_result{ entries =
     LDAPAttributes = Entry#eldap_entry.attributes,
     %% TODO should it really be exporting ldap-specifics like "dn" and "cn"?
     [
-      { <<"id">>, proplists:get_value("nsuniqueid", LDAPAttributes, "") },
-      { <<"cn">>, proplists:get_value("cn", LDAPAttributes, "") },
-      { <<"dn">>, Entry#eldap_entry.object_name }
+      { <<"id">>, list_to_binary(hd(proplists:get_value("nsuniqueid", LDAPAttributes, ""))) },
+      { <<"cn">>, list_to_binary(hd(proplists:get_value("cn", LDAPAttributes, ""))) },
+      { <<"dn">>, list_to_binary(Entry#eldap_entry.object_name) }
     ];
 create_userdata_query_response(UserLogin, { error, Reason }) ->
     lager:warning("LDAP: Could not find requested user ~p, reason: ~p", [UserLogin, Reason]),

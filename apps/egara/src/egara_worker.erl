@@ -225,7 +225,7 @@ ensure_username(State, Notification, UserLogin) ->
         _ -> ignore
     end.
 
-add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
+add_username_from_storage(Storage, Notification, UserLogin, UserData) ->
     LDAP = poolboy:checkout(egara_ldap_pool, false, 10),
     RV = query_ldap_for_username(Storage, Notification, UserLogin, LDAP),
     poolboy:checkin(egara_ldap_pool, LDAP),
