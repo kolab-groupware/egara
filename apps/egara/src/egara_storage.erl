@@ -20,7 +20,7 @@
 -behaviour(gen_server).
 
 %% API
--export([ start_link/1,
+-export([ start_link/0,
           store_notification/3,
           store_userdata/3,
           fetch_userdata_for_login/2
@@ -34,14 +34,14 @@
 
 
 %% public API
-start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
+start_link() -> gen_server:start_link(?MODULE, [], []).
 store_notification(Pid, Key, Notification) when is_binary(Key) -> gen_server:call(Pid, { store_notification, Key, Notification }).
 store_userdata(Pid, UserLogin, UserData) -> gen_server:call(Pid, { store_userdata, UserLogin, UserData }).
 fetch_userdata_for_login(Pid, UserLogin) -> gen_server:call(Pid, { fetch_userdata, UserLogin }).
 
 
 %% gen_server API
-init(_Args) ->
+init(_) ->
     erlang:process_flag(trap_exit, true),
     { ok, #state {} }.
 
@@ -128,4 +128,6 @@ ensure_connected(State) ->
 historical_users_bucket() -> { <<"egara-lww">>, <<"users">> }.
 current_users_bucket() -> { <<"egara-unique">>, <<"current-users">> }.
 notification_bucket() -> { <<"egara-lww">>, <<"imap-events">> }.
+historical_folders_bucket() -> { <<"egara-lww">>, <<"imap-folders">> }.
+current_folders_bucket() -> { <<"egara-lww">>, <<"imap-folders">> }.
 json_type() -> <<"application/json">>.
