@@ -21,7 +21,7 @@
 %% Translate the folder name in to a fully qualified folder path such as it
 %% would be used by a cyrus administrator.
 extract_path_from_uri(SharedPrefix, HierarchyDelim, URI) when is_list(URI) ->
-    lager:info("Parsing ~p", [URI]),
+    %%lager:info("Parsing ~p", [URI]),
     SchemeDefaults = [{ imap, 143 }, { imaps, 993 }],
     ParseOpts = [ { scheme_defaults, SchemeDefaults } ],
     imap_folder_path(SharedPrefix, HierarchyDelim, http_uri:parse(URI, ParseOpts)).
@@ -48,9 +48,9 @@ imap_folder_path(_SharedPrefix, _HierarchyDelim, { error, Reason }) ->
 imap_folder_path(SharedPrefix, HierarchyDelim, { ok, {_Scheme, User, Domain, _Port, FullPath, _Query} }) ->
     { VDomain, _ImapHost } = split_imap_uri_domain(string:tokens(Domain, "@")),
     [ [_|Path] | _ ] = string:tokens(FullPath, ";"),
-    lager:info("PARSED IMAP URI: ~p ~p ~p", [User, VDomain, Path]),
+    %%lager:info("PARSED IMAP URI: ~p ~p ~p", [User, VDomain, Path]),
     CanonicalPath = imap_folder_path_from_parts(SharedPrefix, HierarchyDelim, User, VDomain, Path),
-    lager:info("PUT TOGETHER AS: ~p", [CanonicalPath]),
+    %%lager:info("PUT TOGETHER AS: ~p", [CanonicalPath]),
     CanonicalPath.
 
 split_imap_uri_domain([ ImapHost ]) -> { ImapHost, ImapHost };
