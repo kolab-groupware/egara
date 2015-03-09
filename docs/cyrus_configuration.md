@@ -15,9 +15,9 @@ In /etc/imapd.conf add:
 
     event_content_inclusion_mode: standard
     event_content_size: 0
-    event_extra_params: bodyStructure clientAddress diskUsed flagNames messageSize 
-    messages modseq service timestamp uidnext vnd.cmu.midset 
-    vnd.cmu.unseenMessages vnd.cmu.envelope vnd.cmu.sessionId
+    event_extra_params: bodyStructure clientAddress diskUsed flagNames messageSize \
+            messages modseq service timestamp uidnext vnd.cmu.midset \
+            vnd.cmu.unseenMessages vnd.cmu.envelope vnd.cmu.sessionId
     event_groups: message quota flags access mailbox subscription
     event_notifier: log
 
