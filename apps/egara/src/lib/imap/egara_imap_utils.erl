@@ -16,15 +16,26 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara_imap_utils).
--export([extract_path_from_uri/3, mailbox_uid_header_name/0]).
+-export([extract_path_from_uri/3, extract_uidset_from_uri/1, mailbox_uid_header_name/0]).
 
 %% Translate the folder name in to a fully qualified folder path such as it
 %% would be used by a cyrus administrator.
+extract_path_from_uri(SharedPrefix, HierarchyDelim, URI) when is_binary(URI) ->
+    extract_path_from_uri(SharedPrefix, HierarchyDelim, binary_to_list(URI));
 extract_path_from_uri(SharedPrefix, HierarchyDelim, URI) when is_list(URI) ->
     %%lager:info("Parsing ~p", [URI]),
     SchemeDefaults = [{ imap, 143 }, { imaps, 993 }],
     ParseOpts = [ { scheme_defaults, SchemeDefaults } ],
     imap_folder_path(SharedPrefix, HierarchyDelim, http_uri:parse(URI, ParseOpts)).
+
+extract_uidset_from_uri(URI) when is_binary(URI) ->
+    { TagStart, TagEnd } = binary:match(URI, <<";UID=">>),
+    UIDStart = TagStart + TagEnd + 1,
+    case binary:match(URI, <<";">>, [{ scope, { UIDStart, -1 } }]) of
+        nomatch -> binary:part(URI, UIDStart, -1);
+        { Semicolon, _ } -> binary:part(URI, UIDStart, Semicolon - UIDStart)
+    end.
+
 
 mailbox_uid_header_name() -> <<"/vendor/cmu/cyrus-imapd/uniqueid">>.
 
