@@ -57,16 +57,24 @@ handle_info({ { imap_mailbox_metadata, Folder, NotificationQueueKey, Notificatio
     lager:info("Got imap_mailbox_metadata ~p", [Metadata]),
     UID = proplists:get_value(egara_imap_utils:mailbox_uid_header_name(), Metadata, undefined),
     %%lager:info("UID is ~p", [UID]),
-    store_folder_notification_with_uid(UID, Folder, Notification, NotificationQueueKey, State#state.storage),
+    Result = store_folder_notification_with_uid(UID, Folder, Notification, State#state.storage),
+    post_process_event(NotificationQueueKey, Result),
     { noreply, State };
 handle_info({ { imap_message_mailbox_metadata, Folder, NotificationQueueKey, Notification }, Metadata }, State) ->
     %%TODO: and if we somehow end up with a folder we can't find, or the uniqueid is not there?
     FolderUID = proplists:get_value(<<"/vendor/cmu/cyrus-imapd/uniqueid">>, Metadata),
     egara_storage:store_folder_uid(State#state.storage, Folder, FolderUID),
-    generate_message_event_keys_and_store(State#state.storage, FolderUID, Notification),
+    EventType = proplists:get_value(<<"event">>, Notification),
+    Result = generate_message_event_keys_and_store(State#state.storage, FolderUID, Notification, EventType),
+    post_process_event(NotificationQueueKey, Result),
     %%lager:info("Message keys ~p, Folder UID to be stored ~p", [Keys, FolderUID]),
-    egara_notification_queue:remove(NotificationQueueKey),
     { noreply, State };
+handle_info({ { message_peek, FolderUID, NotificationQueueKey, Notification }, Data }, State) ->
+    PeekedNotification = lists:foldl(fun(Atom, Acc) -> add_entry_to_notification(Acc, Data, Atom) end,
+                                     Notification, [flags, headers, body]),
+    lager:info("Notification now is..... ~p", [PeekedNotification]),
+    Result = generate_message_event_keys_and_store(State#state.storage, FolderUID, PeekedNotification),
+    post_process_event(NotificationQueueKey, Result);
 handle_info(_Info, State) ->
     { noreply, State }.
 
@@ -77,20 +85,32 @@ code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 %% private API
-store_folder_notification_with_uid(undefined, _Folder, Notification, NotificationQueueKey, _Storage) ->
+add_entry_to_notification(Notification, Data, Atom) when is_atom(Atom) ->
+    add_entry_to_notification(Notification, atom_to_binary(Atom, utf8), proplists:get_value(Atom, Data));
+add_entry_to_notification(Notification, Key, undefined) when is_binary(Key) ->
+    Notification;
+add_entry_to_notification(Notification, Key, Value) when is_binary(Key) ->
+    [{ Key, Value } | Notification].
+
+store_folder_notification_with_uid(undefined, _Folder, Notification, _Storage) ->
     lager:warning("Could not find UID for notification ~p", [Notification]),
-    egara_notification_queue:remove(NotificationQueueKey);
-store_folder_notification_with_uid(UID, Folder, Notification, NotificationQueueKey, Storage) ->
+    ok;
+store_folder_notification_with_uid(UID, Folder, Notification, Storage) ->
     Key = generate_folder_event_key(UID, Notification),
     %%lager:info("Storing folder notification with key ~p", [Key]),
     egara_storage:store_folder_uid(Storage, Folder, UID),
-    egara_storage:store_notification(Storage, Key, Notification),
-    egara_notification_queue:remove(NotificationQueueKey).
+    egara_storage:store_notification(Storage, Key, Notification).
 
 generate_folder_event_key(UID, Notification) ->
     Timestamp = timestamp_from_notification(Notification),
     <<"mailbox::", UID/binary, "::", Timestamp/binary>>.
 
+generate_message_event_keys_and_store(_Storage, FolderUID, Notification, <<"MessageNew">>) ->
+    { message_peek, FolderUID, Notification };
+generate_message_event_keys_and_store(_Storage, FolderUID, Notification, <<"MessageAppend">>) ->
+    { message_peek, FolderUID, Notification };
+generate_message_event_keys_and_store(Storage, FolderUID, Notification, _Type) ->
+    generate_message_event_keys_and_store(Storage, FolderUID, Notification).
 generate_message_event_keys_and_store(Storage, FolderUID, Notification) ->
     { From, UIDSet } = uidset_from_notification(Notification),
     Timestamp = timestamp_from_notification(Notification),
@@ -156,6 +176,10 @@ post_process_event(Key, { get_mailbox_metadata, Notification }) ->
 post_process_event(Key, { get_message_mailbox_metadata, Notification }) ->
     Folder = normalized_folder_path_from_notification(Notification),
     start_imap_mailbox_metadata_fetch({ imap_message_mailbox_metadata, Folder, Key, Notification }, Folder);
+post_process_event(Key, { message_peek, FolderUID, Notification }) ->
+    { _, [Message | _] } = uidset_from_notification(Notification),
+    Folder = normalized_folder_path_from_notification(Notification),
+    start_message_peek({ message_peek, FolderUID, Key, Notification }, Folder, Message);
 post_process_event(Key, ok) ->
     %%lager:info("Done with ~p", [Key]),
     egara_notification_queue:remove(Key),
@@ -182,7 +206,8 @@ process_notification_by_category(Storage, Notification, imap_message_event) ->
         notfound ->
             { get_message_mailbox_metadata, Notification };
         FolderUID ->
-            generate_message_event_keys_and_store(Storage, FolderUID, Notification)
+            EventType = proplists:get_value(<<"event">>, Notification),
+            generate_message_event_keys_and_store(Storage, FolderUID, Notification, EventType)
     end;
 process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
     case stored_folder_uid_from_notification(Storage, Notification) of
@@ -276,6 +301,13 @@ start_imap_mailbox_metadata_fetch(Data, Folder) ->
     %%lager:info("fetchng mailbox info over IMAP for ~p with data ~p", [Folder, Data]),
     egara_imap:connect(IMAP), %%TODO, this should be done less often, even though it's nearly a noop here
     egara_imap:get_folder_annotations(IMAP, self(), Data, Folder),
+    poolboy:checkin(egara_imap_pool, IMAP).
+
+start_message_peek(Data, Folder, Message) ->
+    IMAP = poolboy:checkout(egara_imap_pool, false, 10),
+    %%lager:info("fetching message headers/flags/body over IMAP for ~p ~p with data ~p", [Folder, Message, Data]),
+    egara_imap:connect(IMAP), %%TODO, this should be done less often, even though it's nearly a noop here
+    egara_imap:get_message_headers_and_body(IMAP, self(), Data, Folder, Message),
     poolboy:checkin(egara_imap_pool, IMAP).
 
 as_binary(Value) when is_binary(Value) -> Value;
