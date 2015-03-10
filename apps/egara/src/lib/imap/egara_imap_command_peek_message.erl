@@ -25,6 +25,7 @@ new(MessageID) when is_integer(MessageID) -> new(integer_to_binary(MessageID));
 new(MessageID) when is_binary(MessageID) -> <<"FETCH ",  MessageID/binary, " (FLAGS BODY.PEEK[HEADER] BODY.PEEK[TEXT])">>.
 
 parse(<<"* ", _/binary>> = Data) ->
+    %%lager:info("Data is: ~p", [Data]),
     Result = get_past_headers(Data),
     %%lager:info("Result is: ~p", [Result]),
     { fini, Result };
@@ -70,10 +71,31 @@ parse_flags(OrigData, Results, <<_, Data/binary>>, Length) ->
 parse_flags(_OrigData, Results, <<>>, _Length) ->
     Results.
 
-filter_headers(<<>>, Acc) -> Acc;
-filter_headers(Header, Acc) ->
-    [Key, Value] = binary:split(Header, <<": ">>),
-    [{Key, Value} | Acc].
+filter_headers(RawHeaders) ->
+    filter_headers(RawHeaders, none, none, []).
+
+filter_headers([], CurrentKey, CurrentValue, Acc) ->
+    filter_header_add(CurrentKey, CurrentValue, Acc);
+filter_headers([<<>>|Headers], CurrentKey, CurrentValue, Acc) ->
+    filter_headers(Headers, CurrentKey, CurrentValue, Acc);
+filter_headers([Header|Headers], CurrentKey, CurrentValue, Acc) ->
+    filter_header(Headers, CurrentKey, CurrentValue, Acc, binary:split(Header, <<": ">>)).
+
+filter_header(Headers, CurrentKey, CurrentValue, Acc, [Key, Value]) ->
+    Added = filter_header_add(CurrentKey, CurrentValue, Acc),
+    filter_headers(Headers, Key, Value, Added);
+filter_header(Headers, none, _CurrentValue, Acc, _Value) ->
+    filter_headers(Headers, none, none, Acc);
+filter_header(Headers, CurrentKey, CurrentValue, Acc, [Value]) ->
+    %%TODO: get rid of tab, ensure "proper" whitespace
+    NewValue = <<CurrentValue/binary, Value/binary>>,
+    filter_headers(Headers, CurrentKey, NewValue, Acc).
+
+filter_header_add(CurrentKey, CurrentValue, Acc) when CurrentKey =/= none, CurrentValue =/= none ->
+    %%TODO: split CurrentValue on ','
+    [ { CurrentKey, CurrentValue } | Acc ];
+filter_header_add(_, _, Acc) ->
+    Acc.
 
 parse_header(Data, Results) -> parse_header(Data, Results, Data, 0).
 parse_header(_OrigData, Results, <<$}, Rest/binary>>, 0) ->
@@ -83,7 +105,7 @@ parse_header(OrigData, Results, <<$}, Rest/binary>>, Length) ->
     Size = binary_to_integer(ByteSizeString),
     HeaderString = binary:part(Rest, 2, Size), %% the 2 is for \r\n
     RawHeaders = binary:split(HeaderString, <<"\r\n">>, [global]),
-    Headers = lists:foldl(fun filter_headers/2, [], RawHeaders),
+    Headers = filter_headers(RawHeaders),
     Remainder = binary:part(Rest, Size, byte_size(Rest) - Size),
     parse_next_component(Remainder, [{ headers, Headers } | Results]);
 parse_header(OrigData, Results, <<_, Rest/binary>>, Length) ->
@@ -97,6 +119,7 @@ parse_body(_OrigData, Results, <<$}, Rest/binary>>, 0) ->
 parse_body(OrigData, Results, <<$}, Rest/binary>>, Length) ->
     ByteSizeString = binary:part(OrigData, 0, Length),
     Size = binary_to_integer(ByteSizeString),
+    %%lager:info("We have ... ~p ~p ~p", [ByteSizeString, Size, byte_size(Rest)]),
     Body = binary:part(Rest, 2, Size), %% the 2 is for \r\n
     Remainder = binary:part(Rest, Size, -1),
     parse_next_component(Remainder, [{ body, Body } | Results]);
