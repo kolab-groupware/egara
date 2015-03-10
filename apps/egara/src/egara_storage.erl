@@ -37,7 +37,7 @@
 
 %% public API
 start_link() -> gen_server:start_link(?MODULE, [], []).
-store_notification(Pid, Key, Notification) when is_binary(Key) -> gen_server:call(Pid, { store_notification, Key, Notification }).
+store_notification(Pid, Key, Notification) -> gen_server:call(Pid, { store_notification, Key, Notification }).
 store_userdata(Pid, UserLogin, UserData) -> gen_server:call(Pid, { store_userdata, UserLogin, UserData }).
 fetch_userdata_for_login(Pid, UserLogin) -> gen_server:call(Pid, { fetch_userdata, UserLogin }).
 store_folder_uid(Pid, Folder, UID) when is_binary(Folder), is_binary(UID) -> gen_server:call(Pid, { store_folder_uid, Folder, UID }).
@@ -49,15 +49,15 @@ init(_) ->
     erlang:process_flag(trap_exit, true),
     { ok, #state {} }.
 
-handle_call({ store_notification, Key, Notification }, _From, State) ->
-    %%lager:info("Notification----> ~p = ~p", [Key, Notification]),
-    Json = jsx:encode(Notification),
-    Storable = riakc_obj:new(notification_bucket(), Key, Json, json_type()),
+handle_call({ store_notification, Keys, Notification }, _From, State) when is_list(Keys) ->
     NewState = ensure_connected(State),
-    case riakc_pb_socket:put(NewState#state.riak_connection, Storable) of
-        ok -> { reply, ok, NewState };
-        Rv -> lager:warning("Failed to put notification: ~p", [Rv]), { reply, error, NewState }
-    end;
+    Json = jsx:encode(Notification),
+    store_notification_json(Keys, Json, NewState, {});
+handle_call({ store_notification, Key, Notification }, _From, State) when is_binary(Key) ->
+    %%lager:info("Notification----> ~p = ~p", [Key, Notification]),
+    NewState = ensure_connected(State),
+    Json = jsx:encode(Notification),
+    store_notification_json(Key, Json, NewState);
 
 handle_call({ store_userdata, UserLogin, UserData }, From, State) when is_list(UserLogin) ->
     handle_call({ store_userdata, erlang:list_to_binary(UserLogin), UserData }, From, State);
@@ -146,6 +146,20 @@ ensure_connected(#state{ riak_connection = none } = State) ->
     end;
 ensure_connected(State) ->
     State.
+
+store_notification_json([], _Json, _State, Reply) ->
+    Reply;
+store_notification_json([Key|Keys], Json, State, _ReplyPlaceholder) ->
+    Reply = store_notification_json(Key, Json, State),
+    store_notification_json(Keys, Json, State, Reply).
+store_notification_json(Key, Json, State) when is_binary(Key) ->
+    lager:info("Going to store ~p", [Key]),
+    Storable = riakc_obj:new(notification_bucket(), Key, Json, json_type()),
+    case riakc_pb_socket:put(State#state.riak_connection, Storable) of
+        ok -> { reply, ok, State };
+        Rv -> lager:warning("Failed to put notification: ~p", [Rv]), { reply, error, State }
+    end.
+
 
 historical_users_bucket() -> { <<"egara-lww">>, <<"users">> }.
 current_users_bucket() -> { <<"egara-unique">>, <<"users-current">> }.
