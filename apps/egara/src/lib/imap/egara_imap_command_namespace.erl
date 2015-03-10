@@ -25,7 +25,7 @@ new() -> <<"NAMESPACE">>.
 
 parse(<<"* NAMESPACE ", Data/binary>>) ->
     NamespaceParts = process_shared_prefix_parts(Data, 1),
-    relevant_shared_prefix_parts(NamespaceParts).
+    { fini, relevant_shared_prefix_parts(NamespaceParts) }.
 
 %% Private API
 relevant_shared_prefix_parts([]) -> { none, none};

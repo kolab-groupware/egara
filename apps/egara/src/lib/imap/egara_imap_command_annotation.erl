@@ -24,7 +24,7 @@ new(Folder) when is_binary(Folder) ->
 
 parse(Data) when is_binary(Data) ->
     Lines = binary:split(Data, <<"\r\n">>, [global]),
-    lists:foldl(fun parseLine/2, [], Lines).
+    { fini, lists:foldl(fun parseLine/2, [], Lines) }.
 
 
 %% Private API
