@@ -172,8 +172,9 @@ tag_field_width(Serial) -> tag_field_width(Serial / 10000, 5).
 tag_field_width(Serial, Count) when Serial < 10 -> Count;
 tag_field_width(Serial, Count) -> tag_field_width(Serial / 10, Count + 1).
 
-create_socket(Host, Port, true) -> ssl:connect(Host, Port, [binary, {active, once}], 1000);
-create_socket(Host, Port, _) -> gen_tcp:connect(Host, Port, [binary, {active, once}], 1000).
+create_socket(Host, Port, true) -> ssl:connect(Host, Port, socket_options(), 1000);
+create_socket(Host, Port, _) -> gen_tcp:connect(Host, Port, socket_options(), 1000).
+socket_options() -> [binary, { active, once }, { send_timeout, 5000 }].
 
 close_socket(#state{ socket = none }) -> ok;
 close_socket(#state{ socket = Socket, tls = true }) -> ssl:close(Socket);
