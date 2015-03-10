@@ -55,7 +55,7 @@ handle_cast(_Msg, State) ->
 
 handle_info({ { imap_mailbox_metadata, Folder, NotificationQueueKey, Notification }, Metadata }, State) ->
     lager:info("Got imap_mailbox_metadata ~p", [Metadata]),
-    UID = proplists:get_value(<<"/vendor/cmu/cyrus-imapd/uniqueid">>, Metadata, undefined),
+    UID = proplists:get_value(egara_imap_utils:mailbox_uid_header_name(), Metadata, undefined),
     %%lager:info("UID is ~p", [UID]),
     store_folder_notification_with_uid(UID, Folder, Notification, NotificationQueueKey, State#state.storage),
     { noreply, State };

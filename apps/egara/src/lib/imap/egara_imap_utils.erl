@@ -16,7 +16,7 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara_imap_utils).
--export([extract_path_from_uri/3]).
+-export([extract_path_from_uri/3, mailbox_uid_header_name/0]).
 
 %% Translate the folder name in to a fully qualified folder path such as it
 %% would be used by a cyrus administrator.
@@ -26,7 +26,7 @@ extract_path_from_uri(SharedPrefix, HierarchyDelim, URI) when is_list(URI) ->
     ParseOpts = [ { scheme_defaults, SchemeDefaults } ],
     imap_folder_path(SharedPrefix, HierarchyDelim, http_uri:parse(URI, ParseOpts)).
 
-
+mailbox_uid_header_name() -> <<"/vendor/cmu/cyrus-imapd/uniqueid">>.
 
 %% Private
 
