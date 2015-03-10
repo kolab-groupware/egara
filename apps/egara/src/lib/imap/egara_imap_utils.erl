@@ -26,7 +26,8 @@ extract_path_from_uri(SharedPrefix, HierarchyDelim, URI) when is_list(URI) ->
     %%lager:info("Parsing ~p", [URI]),
     SchemeDefaults = [{ imap, 143 }, { imaps, 993 }],
     ParseOpts = [ { scheme_defaults, SchemeDefaults } ],
-    imap_folder_path(SharedPrefix, HierarchyDelim, http_uri:parse(URI, ParseOpts)).
+    Path = imap_folder_path(SharedPrefix, HierarchyDelim, http_uri:parse(URI, ParseOpts)),
+    list_to_binary(Path).
 
 extract_uidset_from_uri(URI) when is_binary(URI) ->
     { TagStart, TagEnd } = binary:match(URI, <<";UID=">>),

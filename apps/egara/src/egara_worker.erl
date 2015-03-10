@@ -263,9 +263,8 @@ add_username_from_ldap(Storage, Notification, UserLogin, UserData) ->
 
 normalized_folder_path_from_notification(Notification) ->
     URI = proplists:get_value(<<"uri">>, Notification),
-    %%TODO: should we check here if we got an actual URI and not an undefined back?
     %%TODO: use PROPER shared prefix (from IMAP)
-    list_to_binary(egara_imap_utils:extract_path_from_uri(none, "/", binary_to_list(URI))).
+    egara_imap_utils:extract_path_from_uri(none, "/", URI).
 
 stored_folder_uid_from_notification(Storage, Notification) ->
     %%TODO caching might help here to avoid hitting storage on every notification
