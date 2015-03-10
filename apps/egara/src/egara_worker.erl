@@ -59,6 +59,15 @@ handle_info({ { imap_mailbox_metadata, Folder, NotificationQueueKey, Notificatio
     %%lager:info("UID is ~p", [UID]),
     store_folder_notification_with_uid(UID, Folder, Notification, NotificationQueueKey, State#state.storage),
     { noreply, State };
+handle_info({ { imap_message_mailbox_metadata, Folder, NotificationQueueKey, Notification }, Metadata }, State) ->
+    %%TODO: and if we somehow end up with a folder we can't find, or the uniqueid is not there?
+    FolderUID = proplists:get_value(<<"/vendor/cmu/cyrus-imapd/uniqueid">>, Metadata),
+    egara_storage:store_folder_uid(State#state.storage, Folder, FolderUID),
+    Keys = generate_message_event_keys(FolderUID, Notification),
+    lager:info("Message keys ~p, Folder UID to be stored ~p", [Keys, FolderUID]),
+    egara_storage:store_notification(State#state.storage, Keys, Notification),
+    egara_notification_queue:remove(NotificationQueueKey),
+    { noreply, State };
 handle_info(_Info, State) ->
     { noreply, State }.
 
@@ -82,6 +91,11 @@ store_folder_notification_with_uid(UID, Folder, Notification, NotificationQueueK
 generate_folder_event_key(UID, Notification) ->
     Timestamp = timestamp_from_notification(Notification),
     <<"mailbox::", UID/binary, "::", Timestamp/binary>>.
+
+generate_message_event_keys(FolderUID, Notification) ->
+    UIDSet = uidset_from_notification(Notification),
+    Timestamp = timestamp_from_notification(Notification),
+    lists:foldl(fun(UID, Acc) -> [<<"message::", FolderUID/binary, "::", UID/binary, "::", Timestamp/binary>> | Acc] end, [], UIDSet).
 
 add_events_to_dict(Type, Events, EventMap) when is_list(Events) ->
     F = fun(Event, Map) ->
@@ -123,19 +137,11 @@ notification_assigned(State, { Key, Notification } ) ->
     post_process_event(Key, Result).
 
 post_process_event(Key, { get_mailbox_metadata, Notification }) ->
-    case poolboy:checkout(egara_imap_pool, false, 10) of
-        IMAP when is_pid(IMAP) ->
-            URI = proplists:get_value(<<"uri">>, Notification, <<"">>),
-            %%TODO: use PROPER shared prefix (from IMAP)
-            Folder = list_to_binary(egara_imap_utils:extract_path_from_uri(none, "/", binary_to_list(URI))),
-            %%lager:info("fetchng mailbox info over IMAP for ~p", [Folder]),
-            egara_imap:connect(IMAP), %%TODO, this should be done less often, even though it's nearly a noop here
-            egara_imap:get_folder_annotations(IMAP, self(), { imap_mailbox_metadata, Folder, Key, Notification }, Folder),
-            poolboy:checkin(egara_imap_pool, IMAP);
-        _ ->
-            lager:error("Could not find an IMAP worker to use"),
-            error
-    end;
+    Folder = normalized_folder_path_from_notification(Notification),
+    start_imap_mailbox_metadata_fetch({ imap_mailbox_metadata, Folder, Key, Notification }, Folder);
+post_process_event(Key, { get_message_mailbox_metadata, Notification }) ->
+    Folder = normalized_folder_path_from_notification(Notification),
+    start_imap_mailbox_metadata_fetch({ imap_message_mailbox_metadata, Folder, Key, Notification }, Folder);
 post_process_event(Key, ok) ->
     %%lager:info("Done with ~p", [Key]),
     egara_notification_queue:remove(Key),
@@ -158,18 +164,16 @@ process_notification_by_category(State, Notification, { ok, Type }) when is_reco
 process_notification_by_category(_, ignore, _) ->
     ignoring;
 process_notification_by_category(Storage, Notification, imap_message_event) ->
-    MessageId = message_from_notification(Notification),
-    Timestamp = timestamp_from_notification(Notification),
-    Key = <<"message::", MessageId/binary, "::", Timestamp/binary>>,
-    %%lager:info("storing an imap_message_event with key ~p", [Key]),
-    egara_storage:store_notification(Storage, Key, Notification);
+    case stored_folder_uid_from_notification(Storage, Notification) of
+        notfound ->
+            { get_message_mailbox_metadata, Notification };
+        FolderUID ->
+            Keys = generate_message_event_keys(FolderUID, Notification),
+            %%lager:info("storing an imap_message_event with key ~p", [Key]),
+            egara_storage:store_notification(Storage, Keys, Notification)
+    end;
 process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
-    URI = proplists:get_value(<<"uri">>, Notification, <<"">>),
-    %%TODO: use PROPER shared prefix (from IMAP)
-    Folder = list_to_binary(egara_imap_utils:extract_path_from_uri(none, "/", binary_to_list(URI))),
-    FromStorage = egara_storage:fetch_folder_uid(Storage, Folder),
-    %%lager:info("Storage said ... ~p", [FromStorage]),
-    case FromStorage of
+    case stored_folder_uid_from_notification(Storage, Notification) of
         notfound ->
             { get_mailbox_metadata, Notification };
         UID ->
@@ -210,10 +214,6 @@ timestamp_from_notification(Notification) ->
         Timestamp -> Timestamp
     end.
 
-message_from_notification(Notification) ->
-    %%TODO: proper message UID
-    proplists:get_value(<<"uri">>, Notification, <<"unknown_message">>).
-
 ensure_username(_State, Notification, undefined) ->
     Notification;
 ensure_username(State, Notification, UserLogin) ->
@@ -225,7 +225,7 @@ ensure_username(State, Notification, UserLogin) ->
         _ -> ignore
     end.
 
-add_username_from_storage(Storage, Notification, UserLogin, UserData) ->
+add_username_from_storage(Storage, Notification, UserLogin, notfound) ->
     LDAP = poolboy:checkout(egara_ldap_pool, false, 10),
     RV = query_ldap_for_username(Storage, Notification, UserLogin, LDAP),
     poolboy:checkin(egara_ldap_pool, LDAP),
@@ -248,6 +248,38 @@ add_username_from_ldap(Storage, Notification, UserLogin, UserData) ->
     egara_storage:store_userdata(Storage, UserLogin, UserData),
     UserIdTuple = { <<"user_id">>, as_binary(proplists:get_value(<<"id">>, UserData, <<"">>)) },
     [ UserIdTuple | Notification ].
+
+normalized_folder_path_from_notification(Notification) ->
+    URI = proplists:get_value(<<"uri">>, Notification),
+    %%TODO: should we check here if we got an actual URI and not an undefined back?
+    %%TODO: use PROPER shared prefix (from IMAP)
+    list_to_binary(egara_imap_utils:extract_path_from_uri(none, "/", binary_to_list(URI))).
+
+stored_folder_uid_from_notification(Storage, Notification) ->
+    %%TODO caching might help here to avoid hitting storage on every notification
+    Folder = normalized_folder_path_from_notification(Notification),
+    egara_storage:fetch_folder_uid(Storage, Folder).
+
+uidset_from_notification(Notification) ->
+    case proplists:get_value(<<"uidset">>, Notification, notfound) of
+        notfound -> [uidset_from_uri(proplists:get_value(<<"uri">>, Notification))];
+        UIDSet -> binary:split(UIDSet, <<",">>, [trim, global])
+    end.
+
+uidset_from_uri(URI) when is_binary(URI) ->
+    { TagStart, TagEnd } = binary:match(URI, <<";UID=">>),
+    UIDStart = TagStart + TagEnd + 1,
+    case binary:match(URI, <<";">>, [{ scope, { UIDStart, -1 } }]) of
+        nomatch -> binary:part(URI, UIDStart, -1);
+        { Semicolon, _ } -> binary:part(URI, UIDStart, Semicolon - UIDStart)
+    end.
+
+start_imap_mailbox_metadata_fetch(Data, Folder) ->
+    IMAP = poolboy:checkout(egara_imap_pool, false, 10),
+    %%lager:info("fetchng mailbox info over IMAP for ~p with data ~p", [Folder, Data]),
+    egara_imap:connect(IMAP), %%TODO, this should be done less often, even though it's nearly a noop here
+    egara_imap:get_folder_annotations(IMAP, self(), Data, Folder),
+    poolboy:checkin(egara_imap_pool, IMAP).
 
 as_binary(Value) when is_binary(Value) -> Value;
 as_binary(Value) when is_list(Value) -> erlang:list_to_binary(Value).
