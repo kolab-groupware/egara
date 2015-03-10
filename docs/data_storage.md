@@ -33,7 +33,7 @@ The record formats are:
     Bucket Type     Bucket          Key Format
     -----------     ------          ----------
     egara-lww       users           <LDAP User Id>::<Timestamp>::<IMAP Login>
-    egara-unique    current-users   <IMAP Login>
+    egara-unique    users-current   <IMAP Login>
 
 The data stored is a JSON representation of the user's LDAP record:
 
@@ -47,10 +47,10 @@ A copy of the most recent data is also stored.
 
 The keys used are:
 
-    Bucket Type     Bucket          Key Format
-    -----------     ------          ----------
-    egara-lww       imap-folders    <Folder UID>::<Timestamp>::<Folder Path>
-    egara-unique    current-folders <Folder Path>
+    Bucket Type     Bucket                  Key Format
+    -----------     ------                  ----------
+    egara-lww       imap-folders            <Folder UID>::<Timestamp>::<Folder Path>
+    egara-unique    imap-folders-current    <Folder Path>
 
 Example of the data stored:
 
@@ -85,7 +85,14 @@ occure in the IMAP data store. These include:
 
 The key is a tuple representing the message UID and folder with timestamp:
 
-    <Message UID>::<Folder>::<Timestamp>
+    [TYPE]::<Folder UID>::<Message UID>::<Timestamp>
+
+TYPE represents the category of event, including:
+
+    message
+    mailbox
+    session
+    quota
 
 The timestamp comes from the event when it exists or is generated at time of
 storage when it doesn't.
@@ -96,7 +103,7 @@ Event records are stored as JSON which may look like this:
         "clientIP": "::1",
         "clientPort": 46461,
         "event": "Login",
-        "pid": 7629,
+        "pid": 7629,current-
         "serverDomain": "::1",
         "serverPort": 143,
         "service": "imap",
