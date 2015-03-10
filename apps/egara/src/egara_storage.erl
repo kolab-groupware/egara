@@ -97,8 +97,8 @@ handle_call({ fetch_userdata, UserLogin }, _From, State) when is_binary(UserLogi
     { reply, Response, NewState };
 
 handle_call({ store_folder_uid, Folder, UID }, _From, State) when is_binary(Folder), is_binary(UID) ->
-    Storable = riakc_obj:new(current_folders_bucket(), Folder, UID),
     NewState = ensure_connected(State),
+    Storable = riakc_obj:new(current_folders_bucket(), Folder, UID),
     Rv = riakc_pb_socket:put(NewState#state.riak_connection, Storable),
     { reply, Rv, NewState };
 
@@ -148,8 +148,8 @@ ensure_connected(State) ->
     State.
 
 historical_users_bucket() -> { <<"egara-lww">>, <<"users">> }.
-current_users_bucket() -> { <<"egara-unique">>, <<"current-users">> }.
+current_users_bucket() -> { <<"egara-unique">>, <<"users-current">> }.
 notification_bucket() -> { <<"egara-lww">>, <<"imap-events">> }.
 historical_folders_bucket() -> { <<"egara-lww">>, <<"imap-folders">> }.
-current_folders_bucket() -> { <<"egara-lww">>, <<"imap-folders">> }.
+current_folders_bucket() -> { <<"egara-unique">>, <<"imap-folders-current">> }.
 json_type() -> <<"application/json">>.
