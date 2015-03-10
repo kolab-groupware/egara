@@ -63,9 +63,8 @@ handle_info({ { imap_message_mailbox_metadata, Folder, NotificationQueueKey, Not
     %%TODO: and if we somehow end up with a folder we can't find, or the uniqueid is not there?
     FolderUID = proplists:get_value(<<"/vendor/cmu/cyrus-imapd/uniqueid">>, Metadata),
     egara_storage:store_folder_uid(State#state.storage, Folder, FolderUID),
-    Keys = generate_message_event_keys(FolderUID, Notification),
-    lager:info("Message keys ~p, Folder UID to be stored ~p", [Keys, FolderUID]),
-    egara_storage:store_notification(State#state.storage, Keys, Notification),
+    generate_message_event_keys_and_store(State#state.storage, FolderUID, Notification),
+    %%lager:info("Message keys ~p, Folder UID to be stored ~p", [Keys, FolderUID]),
     egara_notification_queue:remove(NotificationQueueKey),
     { noreply, State };
 handle_info(_Info, State) ->
@@ -92,10 +91,33 @@ generate_folder_event_key(UID, Notification) ->
     Timestamp = timestamp_from_notification(Notification),
     <<"mailbox::", UID/binary, "::", Timestamp/binary>>.
 
-generate_message_event_keys(FolderUID, Notification) ->
-    UIDSet = uidset_from_notification(Notification),
+generate_message_event_keys_and_store(Storage, FolderUID, Notification) ->
+    { From, UIDSet } = uidset_from_notification(Notification),
     Timestamp = timestamp_from_notification(Notification),
-    lists:foldl(fun(UID, Acc) -> [<<"message::", FolderUID/binary, "::", UID/binary, "::", Timestamp/binary>> | Acc] end, [], UIDSet).
+    Keys = lists:foldl(fun(UID, Acc) -> [<<"message::", FolderUID/binary, "::", UID/binary, "::", Timestamp/binary>> | Acc] end, [], UIDSet),
+    %%lager:info("storing an imap_message_event with keys ~p", [Keys])
+    store_message_event_with_keys(Storage, Keys, Notification, From, UIDSet).
+
+store_message_event_with_keys(Storage, Keys, Notification, uri, UIDSet) ->
+    %% stores the UIDset into the notification to normalize the notification
+    NotificationWithUIDSet = [ { <<"uidset">>, UIDSet } | Notification ],
+    egara_storage:store_notification(Storage, Keys, NotificationWithUIDSet);
+store_message_event_with_keys(Storage, Keys, Notification, _SourceOfUIDSet, _UIDSet) ->
+    egara_storage:store_notification(Storage, Keys, Notification).
+
+uidset_from_notification(Notification) ->
+    case proplists:get_value(<<"uidset">>, Notification, notfound) of
+        notfound -> { uri, [uidset_from_uri(proplists:get_value(<<"uri">>, Notification))] };
+        UIDSet -> { notification, binary:split(UIDSet, <<",">>, [trim, global]) }
+    end.
+
+uidset_from_uri(URI) when is_binary(URI) ->
+    { TagStart, TagEnd } = binary:match(URI, <<";UID=">>),
+    UIDStart = TagStart + TagEnd + 1,
+    case binary:match(URI, <<";">>, [{ scope, { UIDStart, -1 } }]) of
+        nomatch -> binary:part(URI, UIDStart, -1);
+        { Semicolon, _ } -> binary:part(URI, UIDStart, Semicolon - UIDStart)
+    end.
 
 add_events_to_dict(Type, Events, EventMap) when is_list(Events) ->
     F = fun(Event, Map) ->
@@ -168,9 +190,7 @@ process_notification_by_category(Storage, Notification, imap_message_event) ->
         notfound ->
             { get_message_mailbox_metadata, Notification };
         FolderUID ->
-            Keys = generate_message_event_keys(FolderUID, Notification),
-            %%lager:info("storing an imap_message_event with key ~p", [Key]),
-            egara_storage:store_notification(Storage, Keys, Notification)
+            generate_message_event_keys_and_store(Storage, FolderUID, Notification)
     end;
 process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
     case stored_folder_uid_from_notification(Storage, Notification) of
@@ -259,20 +279,6 @@ stored_folder_uid_from_notification(Storage, Notification) ->
     %%TODO caching might help here to avoid hitting storage on every notification
     Folder = normalized_folder_path_from_notification(Notification),
     egara_storage:fetch_folder_uid(Storage, Folder).
-
-uidset_from_notification(Notification) ->
-    case proplists:get_value(<<"uidset">>, Notification, notfound) of
-        notfound -> [uidset_from_uri(proplists:get_value(<<"uri">>, Notification))];
-        UIDSet -> binary:split(UIDSet, <<",">>, [trim, global])
-    end.
-
-uidset_from_uri(URI) when is_binary(URI) ->
-    { TagStart, TagEnd } = binary:match(URI, <<";UID=">>),
-    UIDStart = TagStart + TagEnd + 1,
-    case binary:match(URI, <<";">>, [{ scope, { UIDStart, -1 } }]) of
-        nomatch -> binary:part(URI, UIDStart, -1);
-        { Semicolon, _ } -> binary:part(URI, UIDStart, Semicolon - UIDStart)
-    end.
 
 start_imap_mailbox_metadata_fetch(Data, Folder) ->
     IMAP = poolboy:checkout(egara_imap_pool, false, 10),
