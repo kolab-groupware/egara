@@ -153,7 +153,7 @@ store_notification_json([Key|Keys], Json, State, _ReplyPlaceholder) ->
     Reply = store_notification_json(Key, Json, State),
     store_notification_json(Keys, Json, State, Reply).
 store_notification_json(Key, Json, State) when is_binary(Key) ->
-    lager:info("Going to store ~p", [Key]),
+    %%lager:info("Going to store ~p", [Key]),
     Storable = riakc_obj:new(notification_bucket(), Key, Json, json_type()),
     case riakc_pb_socket:put(State#state.riak_connection, Storable) of
         ok -> { reply, ok, State };
