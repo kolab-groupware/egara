@@ -90,6 +90,7 @@ add_entry_to_notification(Notification, Data, Atom) when is_atom(Atom) ->
 add_entry_to_notification(Notification, Key, undefined) when is_binary(Key) ->
     Notification;
 add_entry_to_notification(Notification, Key, Value) when is_binary(Key) ->
+    %%TODO: check if already there with proplists:get_value(Key, Data)
     [{ Key, Value } | Notification].
 
 store_folder_notification_with_uid(undefined, _Folder, Notification, _Storage) ->
