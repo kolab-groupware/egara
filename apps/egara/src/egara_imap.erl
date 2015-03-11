@@ -29,8 +29,7 @@
 %% state record definition
 -record(state, { host, port, tls, user, pass, authed = false, socket,
                  command_serial = 1, command_queue = queue:new(),
-                 current_command, current_mbox, parse_state,
-                 shared_prefix, hierarchy_delim = "/" }).
+                 current_command, current_mbox, parse_state }).
 -record(command, { tag, mbox, message, from, response_token, parse_fun }).
 
 %% public API
@@ -70,7 +69,6 @@ init(_Args) ->
                 user = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
                 pass = list_to_binary(proplists:get_value(pass, AdminConnConfig, ""))
               },
-    get_path_tokens(self(), self(), get_shared_prefix),
     { ok, disconnected, State }.
 
 disconnected(connect, #state{ host = Host, port = Port, tls = TLS, socket = undefined } = State) ->
@@ -165,9 +163,6 @@ handle_info({ tcp, Socket, Bin }, StateName, #state{ socket = Socket } = State) 
 handle_info({tcp_closed, Socket}, _StateName, #state{ socket = Socket, host = Host } = State) ->
     lager:info("~p Client ~p disconnected.\n", [self(), Host]),
     { stop, normal, State };
-handle_info({ get_shared_prefix, { SharedPrefix, Delim } }, StateName, State) ->
-    %%lager:info("Prefixes .... ~p ~p", [SharedPrefix, Delim]),
-    { next_state, StateName, State#state{ shared_prefix = SharedPrefix, hierarchy_delim = Delim } };
 handle_info({ { selected, MBox }, ok }, StateName, State) ->
     %%lager:info("Selected mbox ~p", [MBox]),
     { next_state, StateName, State#state{ current_mbox = MBox } };
