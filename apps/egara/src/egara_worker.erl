@@ -69,12 +69,18 @@ handle_info({ { imap_message_mailbox_metadata, Folder, NotificationQueueKey, Not
     post_process_event(NotificationQueueKey, Result),
     %%lager:info("Message keys ~p, Folder UID to be stored ~p", [Keys, FolderUID]),
     { noreply, State };
+handle_info({ { message_peek, FolderUID, NotificationQueueKey, Notification }, mailboxnotfound }, State) ->
+    Folder = normalized_folder_path_from_notification(Notification),
+    lager:error("Mailbox ~p (~p) could not be found for message notification { ~p }", [Folder, FolderUID, Notification]),
+    post_process_event(NotificationQueueKey, unrecoverable_error),
+    { noreply, State };
 handle_info({ { message_peek, FolderUID, NotificationQueueKey, Notification }, Data }, State) ->
     PeekedNotification = lists:foldl(fun(Atom, Acc) -> add_entry_to_notification(Acc, Data, Atom) end,
                                      Notification, [flags, headers, body]),
     lager:info("Notification now is..... ~p", [PeekedNotification]),
     Result = generate_message_event_keys_and_store(State#state.storage, FolderUID, PeekedNotification),
-    post_process_event(NotificationQueueKey, Result);
+    post_process_event(NotificationQueueKey, Result),
+    { noreply, State };
 handle_info(_Info, State) ->
     { noreply, State }.
 
