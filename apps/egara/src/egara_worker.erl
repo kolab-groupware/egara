@@ -173,7 +173,7 @@ notification_assigned(State, { Key, Notification } ) ->
     EventType = proplists:get_value(<<"event">>, Notification),
     EventCategory = dict:find(EventType, State#state.event_mapping),
     %%lager:info("Type is ~p which maps to ~p", [EventType, EventCategory]),
-    Result = process_notification_by_category(State, Notification, EventCategory),
+    Result = process_notification_by_category(State, Notification, EventCategory, EventType),
     post_process_event(Key, Result).
 
 post_process_event(Key, { get_mailbox_metadata, Notification }) ->
@@ -204,14 +204,12 @@ post_process_event(Key, _) ->
     egara_notification_queue:release(Key, self()),
     error.
 
-process_notification_by_category(State, Notification, { ok, Type }) when is_record(State, state) ->
+process_notification_by_category(State, Notification, { ok, Category }, Type) when is_record(State, state) ->
     %% this version, with the { ok, _ } tuple is called due to maps:find returning { ok, Value }
-    %% it is essentiall a forwarder to other impls below
+    %% it is essentially a forwarder to other impls below
     NotificationWithUsername = ensure_username(State, Notification, proplists:get_value(<<"user">>, Notification)),
-    process_notification_by_category(State#state.storage, NotificationWithUsername, Type);
-process_notification_by_category(_, ignore, _) ->
-    ignoring;
-process_notification_by_category(Storage, Notification, imap_message_event) ->
+    process_notification_by_category(State#state.storage, NotificationWithUsername, Category, Type);
+process_notification_by_category(Storage, Notification, imap_message_event, _Type) ->
     case stored_folder_uid_from_notification(Storage, Notification) of
         notfound ->
             { get_message_mailbox_metadata, Notification };
@@ -219,7 +217,7 @@ process_notification_by_category(Storage, Notification, imap_message_event) ->
             EventType = proplists:get_value(<<"event">>, Notification),
             generate_message_event_keys_and_store(Storage, FolderUID, Notification, EventType)
     end;
-process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
+process_notification_by_category(Storage, Notification, imap_mailbox_event, _Type) ->
     case stored_folder_uid_from_notification(Storage, Notification) of
         notfound ->
             { get_mailbox_metadata, Notification };
@@ -227,22 +225,21 @@ process_notification_by_category(Storage, Notification, imap_mailbox_event) ->
             Key = generate_folder_event_key(UID, Notification),
             egara_storage:store_notification(Storage, Key, Notification)
     end;
-process_notification_by_category(Storage, Notification, imap_session_event) ->
-    KeyPrefix = key_prefix_for_session_event(proplists:get_value(<<"event">>, Notification, <<"unknown">>)),
+process_notification_by_category(Storage, Notification, imap_session_event, Type) ->
+    KeyPrefix = key_prefix_for_session_event(Type),
     UserId = userid_from_notification(Notification),
     Timestamp = timestamp_from_notification(Notification),
     Key = <<KeyPrefix/binary, "::", UserId/binary, "::", Timestamp/binary>>,
     %%lager:info("storing an imap_session_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
-process_notification_by_category(Storage, Notification, imap_quota_event) ->
+process_notification_by_category(Storage, Notification, imap_quota_event, _Type) ->
     UserId = userid_from_notification(Notification),
     Timestamp = timestamp_from_notification(Notification),
     Key = <<"quota::", UserId/binary, "::", Timestamp/binary>>,
     %%lager:info("storing an imap_quota_event with key ~p", [Key]),
     egara_storage:store_notification(Storage, Key, Notification);
-process_notification_by_category(_Storage, _Notification, _) ->
-    %% in here we have a notification we don't recognize, probably because it was not configured
-    %% to be watched for
+process_notification_by_category(_Storage, _Notification, _CategoryFail, _Type) ->
+    %% in here we have a notification that is not in our configuration
     ignoring.
 
 key_prefix_for_session_event(<<"Login">>) -> <<"session_login">>;
