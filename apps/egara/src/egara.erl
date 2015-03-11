@@ -33,6 +33,8 @@ start(_StartType, _StartArgs) ->
     lager:info("    Initializing the mnesia-based notification queue ..."),
     egara_notification_queue:install([node() | nodes()]),
     egara_notification_queue:start(),
+    lager:info("    Clearing orphans since last start"),
+    egara_notification_queue:release_all(),
     lager:info("    Starting the main supervisor ..."),
     egara_sup:start_link().
 

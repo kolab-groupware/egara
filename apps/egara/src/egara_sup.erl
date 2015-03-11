@@ -57,5 +57,5 @@ init([]) ->
                  ?CHILD(egara_notifications_receiver, worker),
                  ?CHILD(egara_notifications_processor, worker)
                ],
-    {ok, { {one_for_one, 5, 10}, PoolSpecs ++ Children} }.
+    { ok, { { one_for_one, 5, 10}, PoolSpecs ++ Children } }.
 
