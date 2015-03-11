@@ -25,7 +25,7 @@ new(MBox) when is_binary(MBox) -> <<"EXAMINE ", MBox/binary>>.
 
 parse(Data, Tag) when is_binary(Data) -> result(binary:match(Data, <<Tag/binary, " BAD">>)).
 
-result(notfound) -> { fini, ok };
+result(nomatch) -> { fini, ok };
 result(_) -> { fini, error }.
 
 %% Private API
