@@ -168,7 +168,7 @@ handle_info({ { selected, MBox }, ok }, StateName, State) ->
     { next_state, StateName, State#state{ current_mbox = MBox } };
 handle_info({ { selected, MBox }, _ }, StateName, State) ->
     lager:info("Failed to select mbox ~p", [MBox]),
-    NewQueue = queue:filter(fun(Command) -> Command#command.mbox =/= MBox end, State#state.command_queue),
+    NewQueue = queue:filter(fun(Command) -> notify_of_mbox_failure_during_filter(Command, Command#command.mbox =:= MBox) end, State#state.command_queue),
     { next_state, StateName, State#state{ command_queue = NewQueue } };
 handle_info(_Info, StateName, State) ->
     { next_state, StateName, State }.
@@ -183,6 +183,10 @@ notify_of_response(_Response, #command { from = undefined }) -> ok;
 notify_of_response(Response, #command { from = From, response_token = undefined }) -> From ! Response;
 notify_of_response(Response, #command { from = From, response_token = Token }) -> From ! { Token, Response };
 notify_of_response(_, _) -> ok.
+
+%% the return is inverted for filtering
+notify_of_mbox_failure_during_filter(Command, true) -> notify_of_response(mailboxnotfound, Command), false;
+notify_of_mbox_failure_during_filter(_Command, false) -> true.
 
 next_command(more) -> ok;
 next_command(fini) -> gen_fsm:send_event(self(), process_command_queue).
