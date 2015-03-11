@@ -77,7 +77,6 @@ handle_info({ { message_peek, FolderUID, NotificationQueueKey, Notification }, m
 handle_info({ { message_peek, FolderUID, NotificationQueueKey, Notification }, Data }, State) ->
     PeekedNotification = lists:foldl(fun(Atom, Acc) -> add_entry_to_notification(Acc, Data, Atom) end,
                                      Notification, [flags, headers, body]),
-    lager:info("Notification now is..... ~p", [PeekedNotification]),
     Result = generate_message_event_keys_and_store(State#state.storage, FolderUID, PeekedNotification),
     post_process_event(NotificationQueueKey, Result),
     { noreply, State };
