@@ -16,7 +16,8 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara_imap_command_peek_message).
--export([new/1, parse/2]).
+-export([new/1, parse/2, continue_parse/3]).
+-record(parse_state, { body_size, results, data }).
 
 %% https://tools.ietf.org/html/rfc3501#section-6.4.5
 
@@ -24,18 +25,21 @@
 new(MessageID) when is_integer(MessageID) -> new(integer_to_binary(MessageID));
 new(MessageID) when is_binary(MessageID) -> <<"FETCH ",  MessageID/binary, " (FLAGS BODY.PEEK[HEADER] BODY.PEEK[TEXT])">>.
 
+continue_parse(Data, _Tag, #parse_state{ body_size = Size, results = Results, data = PrevData }) ->
+    try_body_parse(<<Data/binary, PrevData/binary>>, Size, Results).
+
 parse(<<"* ", _/binary>> = Data, _Tag) ->
     %%lager:info("Data is: ~p", [Data]),
     Result = get_past_headers(Data),
     %%lager:info("Result is: ~p", [Result]),
-    { fini, Result };
+    Result;
 parse(Data, _Tag) when is_binary(Data) ->
     %%lager:info("data received for peek: ~s", [Data]),
     %% get rid of the trailing \r\n
     Trimmed = binary:part(Data, 0, byte_size(Data) - 2),
     Result = parse_error(Data, Trimmed),
     %%lager:warning("Error is: ~p", [Result]),
-    { fini, Result }.
+    Result.
 
 %% Private API
 parse_error(_OrigData, <<"BAD ", Reason/binary>>) -> { error, Reason };
@@ -58,7 +62,7 @@ parse_next_component(<<"BODY[TEXT] {", Data/binary>>, Results) ->
     parse_body(Data, Results);
 parse_next_component(<<_, Data/binary>>, Results) -> parse_next_component(Data, Results);
 parse_next_component(<<"OK Completed", _/binary>>, Results) -> Results;
-parse_next_component(<<>>, Results) -> Results.
+parse_next_component(<<>>, Results) -> { fini, Results }.
 
 parse_flags(Data, Results) -> parse_flags(Data, Results, Data, 0).
 parse_flags(OrigData, Results, <<$), Rest/binary>>, Length) ->
@@ -69,7 +73,7 @@ parse_flags(OrigData, Results, <<$), Rest/binary>>, Length) ->
 parse_flags(OrigData, Results, <<_, Data/binary>>, Length) ->
     parse_flags(OrigData, Results, Data, Length + 1);
 parse_flags(_OrigData, Results, <<>>, _Length) ->
-    Results.
+    { fini, Results }.
 
 filter_headers(RawHeaders) ->
     filter_headers(RawHeaders, none, none, []).
@@ -111,7 +115,7 @@ parse_header(OrigData, Results, <<$}, Rest/binary>>, Length) ->
 parse_header(OrigData, Results, <<_, Rest/binary>>, Length) ->
     parse_header(OrigData, Results, Rest, Length + 1);
 parse_header(_OrigData, Results, <<>>, _Length) ->
-    Results.
+    { fini, Results }.
 
 parse_body(Data, Results) -> parse_body(Data, Results, Data, 0).
 parse_body(_OrigData, Results, <<$}, Rest/binary>>, 0) ->
@@ -120,10 +124,18 @@ parse_body(OrigData, Results, <<$}, Rest/binary>>, Length) ->
     ByteSizeString = binary:part(OrigData, 0, Length),
     Size = binary_to_integer(ByteSizeString),
     %%lager:info("We have ... ~p ~p ~p", [ByteSizeString, Size, byte_size(Rest)]),
-    Body = binary:part(Rest, 2, Size), %% the 2 is for \r\n
-    Remainder = binary:part(Rest, Size, -1),
-    parse_next_component(Remainder, [{ body, Body } | Results]);
+    try_body_parse(Rest, Size, Results);
 parse_body(OrigData, Results, <<_, Rest/binary>>, Length) ->
     parse_body(OrigData, Results, Rest, Length + 1);
 parse_body(_OrigData, Results, <<>>, _Length) ->
-    Results.
+    { fini, Results }.
+
+try_body_parse(Data, Size, Results) ->
+    case Size > byte_size(Data) of
+        true ->
+            { more, fun ?MODULE:continue_parse/3, #parse_state{ body_size = Size, results = Results, data = Data } };
+        false ->
+            Body = binary:part(Data, 2, Size), %% the 2 is for \r\n
+            Remainder = binary:part(Data, Size, -1),
+            parse_next_component(Remainder, [{ body, Body } | Results])
+    end.
