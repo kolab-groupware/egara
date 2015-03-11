@@ -76,7 +76,7 @@ start_a_worker(N) ->
 
 
 %% gen_server callbacks
-init([]) ->
+init(_Args) ->
     process_backlog(),
     lager:info("Notification processing started ... "),
     { ok, [] }.
@@ -101,12 +101,6 @@ handle_info(_Info, State) ->
 terminate(_Reason, _State) ->
     ok.
 
-%% Upgrade from 2
 code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
-%% Note downgrade code_change not implemented
-    
-    
-
-%%% Internal functions

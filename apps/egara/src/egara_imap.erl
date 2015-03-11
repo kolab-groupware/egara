@@ -20,7 +20,7 @@
 -behaviour(gen_fsm).
 
 %% API
--export([start_link/1, connect/1, disconnect/1, get_folder_annotations/4, get_message_headers_and_body/5]).
+-export([start_link/1, connect/1, disconnect/1, get_folder_annotations/4, get_message_headers_and_body/5, get_path_tokens/3]).
 
 %% gen_fsm callbacks
 -export([disconnected/2, authenticate/2, authenticating/2, idle/2, wait_response/2]).
@@ -29,8 +29,7 @@
 %% state record definition
 -record(state, { host, port, tls, user, pass, authed = false, socket,
                  command_serial = 1, command_queue = queue:new(),
-                 current_command, current_mbox, parse_state,
-                 shared_prefix, hierarchy_delim = "/" }).
+                 current_command, current_mbox, parse_state }).
 -record(command, { tag, mbox, message, from, response_token, parse_fun }).
 
 %% public API
@@ -53,6 +52,12 @@ get_message_headers_and_body(PID, From, ResponseToken, Folder, MessageID) ->
                         parse_fun = fun egara_imap_command_peek_message:parse/2 },
     gen_fsm:send_all_state_event(PID, { ready_command, Command }).
 
+get_path_tokens(PID, From, ResponseToken) ->
+    Command = #command{ message = egara_imap_command_namespace:new(),
+                        from = From, response_token = ResponseToken,
+                        parse_fun = fun egara_imap_command_namespace:parse/2 },
+    gen_fsm:send_all_state_event(PID, { ready_command, Command }).
+
 %% gen_server API
 init(_Args) ->
     Config = application:get_env(egara, imap, []),
@@ -64,10 +69,6 @@ init(_Args) ->
                 user = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
                 pass = list_to_binary(proplists:get_value(pass, AdminConnConfig, ""))
               },
-    Command = #command{ message = egara_imap_command_namespace:new(),
-                        from = self(), response_token = get_shared_prefix,
-                        parse_fun = fun egara_imap_command_namespace:parse/2 },
-    gen_fsm:send_all_state_event(self(), { ready_command, Command }),
     { ok, disconnected, State }.
 
 disconnected(connect, #state{ host = Host, port = Port, tls = TLS, socket = undefined } = State) ->
@@ -162,9 +163,6 @@ handle_info({ tcp, Socket, Bin }, StateName, #state{ socket = Socket } = State) 
 handle_info({tcp_closed, Socket}, _StateName, #state{ socket = Socket, host = Host } = State) ->
     lager:info("~p Client ~p disconnected.\n", [self(), Host]),
     { stop, normal, State };
-handle_info({ get_shared_prefix, { SharedPrefix, Delim } }, StateName, State) ->
-    %%lager:info("Prefixes .... ~p ~p", [SharedPrefix, Delim]),
-    { next_state, StateName, State#state{ shared_prefix = SharedPrefix, hierarchy_delim = Delim } };
 handle_info({ { selected, MBox }, ok }, StateName, State) ->
     %%lager:info("Selected mbox ~p", [MBox]),
     { next_state, StateName, State#state{ current_mbox = MBox } };

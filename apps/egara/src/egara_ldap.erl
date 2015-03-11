@@ -40,11 +40,14 @@ fetch_userdata_for_login(Pid, UserLogin) -> gen_server:call(Pid, { fetch_userdat
 
 %% gen_server API
 init(_Args) ->
-    { ok, #state { base_dn = proplists:get_value(base_dn, application:get_env(egara, ldap, []), [])} }.
+    process_flag(trap_exit, true),
+    State = #state{ base_dn = proplists:get_value(base_dn, application:get_env(egara, ldap, []), [])},
+    { ok, State }.
 
 handle_call({ fetch_userdata, UserLogin } , From, State) when is_list(UserLogin) ->
     handle_call({ store_userdata, erlang:list_to_binary(UserLogin) }, From, State);
 handle_call({ fetch_userdata, UserLogin }, _From, State) ->
+    %%TODO perhaps call with continuation to avoid create new state everytime?
     NewState = ensure_connected(State),
     { reply, query_userdata(UserLogin, NewState), NewState };
 
@@ -54,6 +57,12 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     { noreply, State }.
 
+handle_info({'EXIT', From, _Reason}, State) ->
+    %% look out for our ldap connection dropping
+    if From =:= State#state.ldap_connection -> lager:warning("Just lost our ldap connection..."),
+                                               { noreply, State#state{ ldap_connection = none } };
+       true -> { noreply, State }
+    end;
 handle_info(_Info, State) ->
     { noreply, State }.
 
@@ -68,6 +77,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% LDAP CONNECTION ROUTINES
 ensure_connected(#state{ ldap_connection = none } = State) ->
+    %%TODO eldap:start_tls?
     LDAPConfig = application:get_env(egara, ldap, []),
     connect_with_config(proplists:get_value(hosts, LDAPConfig),
                         proplists:get_value(port, LDAPConfig),
@@ -92,6 +102,7 @@ ldap_connection_attempt({ error, Reason }, _BindDn, _BindPw, State) ->
     State.
 
 ldap_bind_attempt(ok, Handle, State) ->
+    link(Handle),
     State#state{ ldap_connection = Handle };
 ldap_bind_attempt({ error, Reason }, Handle, State) ->
     lager:error("LDAP: Could not authenticate to server: ~p", [Reason]),
