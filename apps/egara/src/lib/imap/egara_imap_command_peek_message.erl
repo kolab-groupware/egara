@@ -16,7 +16,7 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara_imap_command_peek_message).
--export([new/1, parse/1]).
+-export([new/1, parse/2]).
 
 %% https://tools.ietf.org/html/rfc3501#section-6.4.5
 
@@ -24,12 +24,12 @@
 new(MessageID) when is_integer(MessageID) -> new(integer_to_binary(MessageID));
 new(MessageID) when is_binary(MessageID) -> <<"FETCH ",  MessageID/binary, " (FLAGS BODY.PEEK[HEADER] BODY.PEEK[TEXT])">>.
 
-parse(<<"* ", _/binary>> = Data) ->
+parse(<<"* ", _/binary>> = Data, _Tag) ->
     %%lager:info("Data is: ~p", [Data]),
     Result = get_past_headers(Data),
     %%lager:info("Result is: ~p", [Result]),
     { fini, Result };
-parse(Data) when is_binary(Data) ->
+parse(Data, _Tag) when is_binary(Data) ->
     %%lager:info("data received for peek: ~s", [Data]),
     %% get rid of the trailing \r\n
     Trimmed = binary:part(Data, 0, byte_size(Data) - 2),

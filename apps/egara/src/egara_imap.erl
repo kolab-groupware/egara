@@ -44,13 +44,13 @@ get_folder_annotations(PID, From, ResponseToken, Folder) when is_list(Folder) ->
 get_folder_annotations(PID, From, ResponseToken, Folder) when is_binary(Folder) ->
     Command = #command{ message = egara_imap_command_annotation:new(Folder),
                         from = From, response_token = ResponseToken,
-                        parse_fun = fun egara_imap_command_annotation:parse/1 },
+                        parse_fun = fun egara_imap_command_annotation:parse/2 },
     gen_fsm:send_all_state_event(PID, { ready_command, Command }).
 
 get_message_headers_and_body(PID, From, ResponseToken, Folder, MessageID) ->
     Command = #command{ mbox = Folder, message = egara_imap_command_peek_message:new(MessageID),
                         from = From, response_token = ResponseToken,
-                        parse_fun = fun egara_imap_command_peek_message:parse/1 },
+                        parse_fun = fun egara_imap_command_peek_message:parse/2 },
     gen_fsm:send_all_state_event(PID, { ready_command, Command }).
 
 %% gen_server API
@@ -66,7 +66,7 @@ init(_Args) ->
               },
     Command = #command{ message = egara_imap_command_namespace:new(),
                         from = self(), response_token = get_shared_prefix,
-                        parse_fun = fun egara_imap_command_namespace:parse/1 },
+                        parse_fun = fun egara_imap_command_namespace:parse/2 },
     gen_fsm:send_all_state_event(self(), { ready_command, Command }),
     { ok, disconnected, State }.
 
@@ -124,8 +124,8 @@ idle(_Event, State) ->
 wait_response({ data, _Data }, #state{ current_command = #command{ parse_fun = undefined } } = State) ->
     gen_fsm:send_event(self(), process_command_queue),
     { next_state, idle, State };
-wait_response({ data, Data }, #state{ current_command = #command{ parse_fun = Fun } } = State) when is_function(Fun, 1) ->
-    { More, Response } = Fun(Data),
+wait_response({ data, Data }, #state{ current_command = #command{ parse_fun = Fun, tag = Tag } } = State) when is_function(Fun, 2) ->
+    { More, Response } = Fun(Data, Tag),
     %%lager:info("Response from parser was ~p ~p, size of queue ~p", [More, Response, queue:len(State#state.command_queue)]),
     notify_of_response(Response, State),
     next_command(More),
@@ -163,9 +163,13 @@ handle_info({tcp_closed, Socket}, _StateName, #state{ socket = Socket, host = Ho
 handle_info({ get_shared_prefix, { SharedPrefix, Delim } }, StateName, State) ->
     %%lager:info("Prefixes .... ~p ~p", [SharedPrefix, Delim]),
     { next_state, StateName, State#state{ shared_prefix = SharedPrefix, hierarchy_delim = Delim } };
-handle_info({ { selected, MBox }, Data }, StateName, State) ->
-    %%lager:info("Selected mbox ~p (~p)", [MBox, Data]),
+handle_info({ { selected, MBox }, ok }, StateName, State) ->
+    %%lager:info("Selected mbox ~p", [MBox]),
     { next_state, StateName, State#state{ current_mbox = MBox } };
+handle_info({ { selected, MBox }, _ }, StateName, State) ->
+    lager:info("Failed to select mbox ~p", [MBox]),
+    NewQueue = queue:filter(fun(Command) -> Command#command.mbox =/= MBox end, State#state.command_queue),
+    { next_state, StateName, State#state{ command_queue = NewQueue } };
 handle_info(_Info, StateName, State) ->
     { next_state, StateName, State }.
 
@@ -219,7 +223,7 @@ send_command_or_select_mbox(Fun, Command, State, _MBox, true) ->
 send_command_or_select_mbox(Fun, DelayedCommand, State, MBox, false) ->
     NextState = reenque_command(DelayedCommand, State),
     SelectMessage = egara_imap_command_examine:new(MBox),
-    SelectCommand = #command{ message = SelectMessage, parse_fun = fun egara_imap_command_examine:parse/1,
+    SelectCommand = #command{ message = SelectMessage, parse_fun = fun egara_imap_command_examine:parse/2,
                               from = self(), response_token = { selected, MBox } },
     send_command_now(Fun, SelectCommand, NextState).
 

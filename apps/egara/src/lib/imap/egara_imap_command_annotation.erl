@@ -16,13 +16,13 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara_imap_command_annotation).
--export([new/1, parse/1]).
+-export([new/1, parse/2]).
 
 %% Public API
 new(Folder) when is_binary(Folder) ->
     Message = <<"GETANNOTATION ", Folder/binary, " \"*\" \"value.shared\"">>.
 
-parse(Data) when is_binary(Data) ->
+parse(Data, _Tag) when is_binary(Data) ->
     Lines = binary:split(Data, <<"\r\n">>, [global]),
     { fini, lists:foldl(fun parseLine/2, [], Lines) }.
 
