@@ -71,7 +71,7 @@ handle_info({ { imap_message_mailbox_metadata, Folder, NotificationQueueKey, Not
     { noreply, State };
 handle_info({ { message_peek, FolderUID, NotificationQueueKey, Notification }, mailboxnotfound }, State) ->
     Folder = normalized_folder_path_from_notification(Notification),
-    lager:error("Mailbox ~p (~p) could not be found for message notification { ~p }", [Folder, FolderUID, Notification]),
+    lager:error("Mailbox ~p (~p) could not be found for message notification { ~s }", [Folder, FolderUID, Notification]),
     post_process_event(NotificationQueueKey, unrecoverable_error),
     { noreply, State };
 handle_info({ { message_peek, FolderUID, NotificationQueueKey, Notification }, Data }, State) ->
