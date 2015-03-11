@@ -29,7 +29,7 @@
 %% state record definition
 -record(state, { host, port, tls, user, pass, authed = false, socket,
                  command_serial = 1, command_queue = queue:new(),
-                 current_command, current_mbox,
+                 current_command, current_mbox, parse_state,
                  shared_prefix, hierarchy_delim = "/" }).
 -record(command, { tag, mbox, message, from, response_token, parse_fun }).
 
@@ -125,11 +125,13 @@ wait_response({ data, _Data }, #state{ current_command = #command{ parse_fun = u
     gen_fsm:send_event(self(), process_command_queue),
     { next_state, idle, State };
 wait_response({ data, Data }, #state{ current_command = #command{ parse_fun = Fun, tag = Tag } } = State) when is_function(Fun, 2) ->
-    { More, Response } = Fun(Data, Tag),
+    Response = Fun(Data, Tag),
     %%lager:info("Response from parser was ~p ~p, size of queue ~p", [More, Response, queue:len(State#state.command_queue)]),
-    notify_of_response(Response, State#state.current_command),
-    next_command(More),
-    { next_state, idle, State }.
+    next_command_after_response(Response, State);
+wait_response({ data, Data }, #state{ parse_state = ParseState, current_command = #command{ parse_fun = Fun, tag = Tag } } = State) when is_function(Fun, 3) ->
+    Response = Fun(Data, Tag, ParseState),
+    %%lager:info("Response from parser was ~p ~p, size of queue ~p", [More, Response, queue:len(State#state.command_queue)]),
+    next_command_after_response(Response, State).
 
 handle_event(connect, disconnected, State) ->
     gen_fsm:send_event(self(), connect),
@@ -188,8 +190,14 @@ notify_of_response(_, _) -> ok.
 notify_of_mbox_failure_during_filter(Command, true) -> notify_of_response(mailboxnotfound, Command), false;
 notify_of_mbox_failure_during_filter(_Command, false) -> true.
 
-next_command(more) -> ok;
-next_command(fini) -> gen_fsm:send_event(self(), process_command_queue).
+next_command_after_response({ more, Fun, ParseState }, State) when is_function(Fun, 3) ->
+    { next_state, wait_response, State#state{ parse_state = ParseState, current_command = State#state.current_command#command{ parse_fun = Fun } } };
+next_command_after_response({ more, ParseState }, State) ->
+    { next_state, wait_response, State#state{ parse_state = ParseState } };
+next_command_after_response({ fini, Response }, State) ->
+    notify_of_response(Response, State#state.current_command),
+    gen_fsm:send_event(self(), process_command_queue),
+    { next_state, idle, State#state{ parse_state = none } }.
 
 tag_field_width(Serial) when Serial < 10000 -> 4;
 tag_field_width(Serial) -> tag_field_width(Serial / 10000, 5).
