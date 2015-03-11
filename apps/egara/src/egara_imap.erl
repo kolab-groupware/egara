@@ -20,7 +20,7 @@
 -behaviour(gen_fsm).
 
 %% API
--export([start_link/1, connect/1, disconnect/1, get_folder_annotations/4, get_message_headers_and_body/5]).
+-export([start_link/1, connect/1, disconnect/1, get_folder_annotations/4, get_message_headers_and_body/5, get_path_tokens/3]).
 
 %% gen_fsm callbacks
 -export([disconnected/2, authenticate/2, authenticating/2, idle/2, wait_response/2]).
@@ -53,6 +53,12 @@ get_message_headers_and_body(PID, From, ResponseToken, Folder, MessageID) ->
                         parse_fun = fun egara_imap_command_peek_message:parse/2 },
     gen_fsm:send_all_state_event(PID, { ready_command, Command }).
 
+get_path_tokens(PID, From, ResponseToken) ->
+    Command = #command{ message = egara_imap_command_namespace:new(),
+                        from = From, response_token = ResponseToken,
+                        parse_fun = fun egara_imap_command_namespace:parse/2 },
+    gen_fsm:send_all_state_event(PID, { ready_command, Command }).
+
 %% gen_server API
 init(_Args) ->
     Config = application:get_env(egara, imap, []),
@@ -64,10 +70,7 @@ init(_Args) ->
                 user = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
                 pass = list_to_binary(proplists:get_value(pass, AdminConnConfig, ""))
               },
-    Command = #command{ message = egara_imap_command_namespace:new(),
-                        from = self(), response_token = get_shared_prefix,
-                        parse_fun = fun egara_imap_command_namespace:parse/2 },
-    gen_fsm:send_all_state_event(self(), { ready_command, Command }),
+    get_path_tokens(self(), self(), get_shared_prefix),
     { ok, disconnected, State }.
 
 disconnected(connect, #state{ host = Host, port = Port, tls = TLS, socket = undefined } = State) ->
