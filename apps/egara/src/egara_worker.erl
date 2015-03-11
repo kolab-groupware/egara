@@ -185,6 +185,10 @@ post_process_event(Key, ok) ->
     %%lager:info("Done with ~p", [Key]),
     egara_notification_queue:remove(Key),
     again;
+post_process_event(Key, unrecoverable_error) ->
+    lager:error("Event ~p could not be processed, dropping on floor", [Key]),
+    egara_notification_queue:remove(Key),
+    again;
 post_process_event(Key, ignoring) ->
     %%lager:info("Ignoring ~p", [Key]),
     egara_notification_queue:remove(Key),
