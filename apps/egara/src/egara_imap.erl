@@ -127,7 +127,7 @@ wait_response({ data, _Data }, #state{ current_command = #command{ parse_fun = u
 wait_response({ data, Data }, #state{ current_command = #command{ parse_fun = Fun, tag = Tag } } = State) when is_function(Fun, 2) ->
     { More, Response } = Fun(Data, Tag),
     %%lager:info("Response from parser was ~p ~p, size of queue ~p", [More, Response, queue:len(State#state.command_queue)]),
-    notify_of_response(Response, State),
+    notify_of_response(Response, State#state.current_command),
     next_command(More),
     { next_state, idle, State }.
 
@@ -178,10 +178,10 @@ terminate(_Reason, _Statename, State) -> close_socket(State), ok.
 code_change(_OldVsn, Statename, State, _Extra) -> { ok, Statename, State }.
 
 %% private API
-notify_of_response(none, _State) -> ok;
-notify_of_response(_Response, #state{ current_command = #command { from = undefined } }) -> ok;
-notify_of_response(Response, #state{ current_command = #command { from = From, response_token = undefined } }) -> From ! Response;
-notify_of_response(Response, #state{ current_command = #command { from = From, response_token = Token } }) -> From ! { Token, Response };
+notify_of_response(none, _Command) -> ok;
+notify_of_response(_Response, #command { from = undefined }) -> ok;
+notify_of_response(Response, #command { from = From, response_token = undefined }) -> From ! Response;
+notify_of_response(Response, #command { from = From, response_token = Token }) -> From ! { Token, Response };
 notify_of_response(_, _) -> ok.
 
 next_command(more) -> ok;
