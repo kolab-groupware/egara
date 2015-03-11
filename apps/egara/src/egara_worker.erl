@@ -57,7 +57,8 @@ handle_info({ { imap_mailbox_metadata, Folder, NotificationQueueKey, Notificatio
     lager:info("Got imap_mailbox_metadata ~p", [Metadata]),
     UID = proplists:get_value(egara_imap_utils:mailbox_uid_header_name(), Metadata, undefined),
     %%lager:info("UID is ~p", [UID]),
-    Result = store_folder_notification_with_uid(UID, Folder, Notification, State#state.storage),
+    NotificationWithMetadata = [ { <<"metadata">>, Metadata } | Notification ],
+    Result = store_folder_notification_with_uid(UID, Folder, NotificationWithMetadata, State#state.storage),
     post_process_event(NotificationQueueKey, Result),
     { noreply, State };
 handle_info({ { imap_message_mailbox_metadata, Folder, NotificationQueueKey, Notification }, Metadata }, State) ->
