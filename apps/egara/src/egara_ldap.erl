@@ -63,6 +63,8 @@ handle_info({'EXIT', From, _Reason}, State) ->
                                                { noreply, State#state{ ldap_connection = none } };
        true -> { noreply, State }
     end;
+handle_info({'EXIT', _ParentPid, shutdown}, State) ->
+    exit(shutdown);
 handle_info(_Info, State) ->
     { noreply, State }.
 
