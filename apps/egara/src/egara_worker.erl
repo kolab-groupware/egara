@@ -123,6 +123,8 @@ generate_message_event_keys_and_store(_State, FolderUID, Notification, <<"Messag
     { message_peek, FolderUID, Notification };
 generate_message_event_keys_and_store(_State, FolderUID, Notification, <<"MessageAppend">>) ->
     { message_peek, FolderUID, Notification };
+generate_message_event_keys_and_store(_State, FolderUID, Notification, <<"MessageCopy">>) ->
+    { message_peek, FolderUID, Notification };
 generate_message_event_keys_and_store(#state{ storage = Storage }, FolderUID, Notification, _Type) ->
     generate_message_event_keys_and_store(Storage, FolderUID, Notification).
 generate_message_event_keys_and_store(#state{ storage = Storage }, FolderUID, Notification) ->
