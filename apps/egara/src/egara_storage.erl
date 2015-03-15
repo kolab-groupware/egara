@@ -42,7 +42,7 @@ store_userdata(Pid, UserLogin, UserData) -> gen_server:call(Pid, { store_userdat
 fetch_userdata_for_login(Pid, UserLogin) -> gen_server:call(Pid, { fetch_userdata, UserLogin }).
 store_folder_uid(Pid, Folder, UID) when is_binary(Folder), is_binary(UID) -> gen_server:call(Pid, { store_folder_uid, Folder, UID }).
 fetch_folder_uid(Pid, Folder) when is_binary(Folder) -> gen_server:call(Pid, { fetch_folder_uid, Folder }).
-
+store_message_history_entry(Pid, Key, Value) when is_binary(Key), is_binary(Value) -> gen_server:call(Pid, { store_message_history_entry, Key, Value }).
 
 %% gen_server API
 init(_) ->
@@ -114,6 +114,13 @@ handle_call({ fetch_folder_uid, Folder }, _From, State) when is_binary(Folder) -
     end,
     { reply, Response, NewState };
 
+handle_call({ store_message_history_entry, Key, Value}, _From, State) when is_binary(Key), is_binary(Value) ->
+    NewState = ensure_connected(State),
+    Storable = riakc_obj:new(message_timeline_bucket(), Key, Value),
+    Rv = riakc_pb_socket:put(NewState#state.riak_connection, Storable),
+    { reply, Rv, NewState };
+
+
 handle_call(_Request, _From, State) ->
     { reply, ok, State }.
 
@@ -168,4 +175,5 @@ current_users_bucket() -> { <<"egara-unique">>, <<"users-current">> }.
 notification_bucket() -> { <<"egara-lww">>, <<"imap-events">> }.
 historical_folders_bucket() -> { <<"egara-lww">>, <<"imap-folders">> }.
 current_folders_bucket() -> { <<"egara-unique">>, <<"imap-folders-current">> }.
+message_timeline_bucket() -> { <<"egara-lww">>, <<"imap-message-timeline">> }.
 json_type() -> <<"application/json">>.
