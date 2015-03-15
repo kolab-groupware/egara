@@ -118,7 +118,7 @@ The exact contents vary from event to event.
 (TODO: document the results from various events, perhaps as individual specimen files
        with reference to that location here)
 
-== "imap_message_timeline"
+== "imap-message-timeline"
 
 In order to work-around the problem of not having globally unique message IDs
 over arbitrary time frames, Egara stores a side-channel data stream that documents
