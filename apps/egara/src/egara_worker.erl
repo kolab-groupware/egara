@@ -140,7 +140,8 @@ generate_message_event_keys_and_store(State, FolderUid, Notification, <<"Message
 generate_message_event_keys_and_store(State, FolderUid, Notification, <<"MessageAppend">>) ->
     create_message_history_entry(State, FolderUid, Notification),
     { message_peek, FolderUid, Notification };
-generate_message_event_keys_and_store(_State, FolderUid, Notification, <<"MessageCopy">>) ->
+generate_message_event_keys_and_store(State, FolderUid, Notification, <<"MessageCopy">>) ->
+    create_message_history_entry(State, FolderUid, Notification),
     { message_peek, FolderUid, Notification };
 generate_message_event_keys_and_store(State, FolderUid, Notification, <<"MessageMove">>) ->
     create_message_history_entry(State, FolderUid, Notification),
