@@ -414,7 +414,7 @@ start_imap_mailbox_metadata_fetch(Data, Folder, #state{ imap = Imap }) ->
     egara_imap:connect(Imap), %%TODO, this should be done less often, even though it's nearly a noop here
     egara_imap:get_folder_annotations(Imap, self(), Data, Folder).
 
-start_message_peek(_Imap, _FolderPath, _FolderUid, _Notification, NotificationQueueKey, { none, _ }) ->
+start_message_peek(_Imap, _FolderPath, _FolderUid, _Notification, _NotificationQueueKey, { none, _ }) ->
     done;
 start_message_peek(Imap, FolderPath, FolderUid, Notification, NotificationQueueKey, { MessageUid, UidSet }) ->
     %%lager:info("fetching message headers/flags/body over IMAP for message ~p in ~p (UID: ~p)", [MessageUid, FolderPath, FolderUid]),
