@@ -143,12 +143,22 @@ generate_message_event_keys_and_store(State, FolderUid, Notification, <<"Message
 generate_message_event_keys_and_store(State, FolderUid, Notification, _Type) ->
     generate_message_event_keys_and_store(State, FolderUid, Notification).
 
+generate_message_event_key(_FolderUid, _Timestamp, Acc, { none, _ }) ->
+    Acc;
+generate_message_event_key(FolderUid, Timestamp, Acc, { Uid, UidSet }) ->
+    UidBin = integer_to_binary(Uid),
+    Key = <<"message::", FolderUid/binary, "::", UidBin/binary, "::", Timestamp/binary>>,
+    generate_message_event_key(FolderUid, Timestamp, [Key|Acc], egara_imap_uidset:next_uid(UidSet)).
+generate_message_event_keys(FolderUid, Timestamp, UidSetString) ->
+    UidSet = egara_imap_uidset:parse(UidSetString),
+    generate_message_event_key(FolderUid, Timestamp, [], egara_imap_uidset:next_uid(UidSet)).
+
 generate_message_event_keys_and_store(#state{ storage = Storage }, FolderUid, Notification) ->
-    { From, UidSet } = uidset_from_notification(Notification),
+    { UidSetFrom, UidSet } = uidset_from_notification(Notification),
     Timestamp = timestamp_from_notification(Notification),
-    Keys = lists:foldl(fun(Uid, Acc) -> [<<"message::", FolderUid/binary, "::", Uid/binary, "::", Timestamp/binary>> | Acc] end, [], UidSet),
-    %%lager:info("storing an imap_message_event with keys ~p", [Keys])
-    store_message_event_with_keys(Storage, Keys, Notification, From, UidSet).
+    Keys = generate_message_event_keys(FolderUid, Timestamp, UidSet),
+    lager:info("storing an imap_message_event with keys ~p", [Keys]),
+    store_message_event_with_keys(Storage, Keys, Notification, UidSetFrom, UidSet).
 
 create_message_history_entry(State, NewFolderUid, Notification) ->
     OldUri = proplists:get_value(<<"oldMailboxID">>, Notification),
