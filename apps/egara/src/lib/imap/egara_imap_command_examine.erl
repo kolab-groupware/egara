@@ -23,10 +23,24 @@
 %% Public API
 new(MBox) when is_binary(MBox) -> <<"EXAMINE ", MBox/binary>>.
 
-parse(Data, Tag) when is_binary(Data) -> lager:info("SELECT_DEBUG ~p ~p", [Data, Tag]), result(binary:match(Data, <<Tag/binary, " BAD">>)).
+parse(Data, Tag) when is_binary(Data) ->
+    NoToken = <<Tag/binary, " NO">>,
+    NoTokenLength = byte_size(NoToken),
+    is_no_token_found(Data, Tag, binary:match(Data, NoToken, [ { scope, { 0, NoTokenLength } } ])).
 
-result(nomatch) -> { fini, ok };
-result(_) -> { fini, error }.
+is_no_token_found(Data, Tag, nomatch) ->
+    BadToken = <<Tag/binary, " BAD">>,
+    BadTokenLength = byte_size(BadToken),
+    is_bad_token_found(Data, Tag, binary:match(Data, BadToken, [ { scope, { 0, BadTokenLength } } ]));
+is_no_token_found(Data, _Tag, _) ->
+    lager:error("Could not examine folder: ~p", [Data]),
+    { fini, error }.
+
+is_bad_token_found(Data, Tag, nomatch) ->
+    { finis, ok };
+is_bad_token_found(Data, _Tag, _) ->
+    lager:error("Could not examine folder: ~p", [Data]),
+    { finis, error }.
 
 %% Private API
 
