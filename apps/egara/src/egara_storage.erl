@@ -175,7 +175,7 @@ store_notification_json(Key, Json, State) when is_binary(Key) ->
 historical_users_bucket() -> { <<"egara-lww">>, <<"users">> }.
 current_users_bucket() -> { <<"egara-unique">>, <<"users-current">> }.
 notification_bucket() -> { <<"egara-lww">>, <<"imap-events">> }.
-historical_folders_bucket() -> { <<"egara-lww">>, <<"imap-folders">> }.
+%%historical_folders_bucket() -> { <<"egara-lww">>, <<"imap-folders">> }.
 current_folders_bucket() -> { <<"egara-unique">>, <<"imap-folders-current">> }.
 message_timeline_bucket() -> { <<"egara-lww">>, <<"imap-message-timeline">> }.
 json_type() -> <<"application/json">>.
