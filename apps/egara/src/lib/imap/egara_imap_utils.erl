@@ -32,9 +32,10 @@ extract_path_from_uri(SharedPrefix, HierarchyDelim, URI) when is_list(URI) ->
 extract_uidset_from_uri(URI) when is_binary(URI) ->
     { TagStart, TagEnd } = binary:match(URI, <<";UID=">>),
     UIDStart = TagStart + TagEnd + 1,
-    case binary:match(URI, <<";">>, [{ scope, { UIDStart, -1 } }]) of
-        nomatch -> binary:part(URI, UIDStart, -1);
-        { Semicolon, _ } -> binary:part(URI, UIDStart, Semicolon - UIDStart)
+    UriLength = byte_size(URI),
+    case binary:match(URI, <<";">>, [{ scope, { UIDStart, UriLength - UIDStart } }]) of
+        nomatch -> binary:part(URI, UIDStart - 1, UriLength - UIDStart + 1);
+        { Semicolon, _ } -> binary:part(URI, UIDStart - 1, Semicolon - UIDStart + 1)
     end.
 
 
