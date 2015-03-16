@@ -34,7 +34,7 @@ add_component([First, Second], Acc) -> add_component(binary_to_integer(First), b
 add_component([<<"">>], Acc) -> Acc;
 add_component([Single], Acc) when is_binary(Single) -> add_component(binary_to_integer(Single), Acc);
 add_component(Uid, Acc) when is_integer(Uid) -> [Uid|Acc];
-add_component(_, Acc) -> throw(badarg).
+add_component(_, _Acc) -> throw(badarg).
 
 add_component(First, Second, Acc) when is_integer(First), is_integer(Second) -> add_range(First, Second, Acc);
 add_component(_, _, _Acc) -> throw(badarg).

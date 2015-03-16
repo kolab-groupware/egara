@@ -26,7 +26,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -define(BATCH_SIZE, 500).
 
--record(state, { event_mapping, storage, imap, admin_user_prefix, imap_path_delim = "/", imap_shared_prefix = none }).
+-record(state, { archival = true, event_mapping, storage, imap, admin_user_prefix, imap_path_delim = "/", imap_shared_prefix = none }).
 
 start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
 
@@ -36,11 +36,12 @@ init(_Args) ->
     EventMapping = transform_events_config_to_dict(application:get_env(events_to_track)),
     { ok, Storage } = egara_storage:start_link(),
     %% get the admin user, whose events we will ignore
+    Archival = application:get_env(egara, archival, false),
     Config = application:get_env(egara, imap, []),
     AdminConnConfig = proplists:get_value(admin_connection, Config, []),
     AdminUser = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
     AdminUserPrefix = <<AdminUser/binary, "@">>,
-    State = #state{ event_mapping = EventMapping, storage = Storage, admin_user_prefix = AdminUserPrefix },
+    State = #state{ archival = Archival, event_mapping = EventMapping, storage = Storage, admin_user_prefix = AdminUserPrefix },
     Imap = poolboy:checkout(egara_imap_pool, false, 10),
     egara_imap:connect(Imap),
     egara_imap:get_path_tokens(Imap, self(), get_path_tokens),
@@ -279,10 +280,16 @@ post_process_event(Key, { get_message_mailbox_metadata, Notification }, State) -
     start_imap_mailbox_metadata_fetch({ imap_message_mailbox_metadata, Folder, Key, Notification }, Folder, State),
     again;
 post_process_event(Key, { message_peek, FolderUid, Notification }, #state{ imap = Imap } = State) ->
-    { _, UidSetString } = uidset_from_notification(Notification),
-    FolderPath = normalized_folder_path_from_notification(Notification, State),
-    UidSet = egara_imap_uidset:parse(UidSetString),
-    start_message_peek(Imap, FolderPath, FolderUid, Notification, Key, egara_imap_uidset:next_uid(UidSet)),
+    case State#state.archival of
+        true ->
+            { _, UidSetString } = uidset_from_notification(Notification),
+            FolderPath = normalized_folder_path_from_notification(Notification, State),
+            UidSet = egara_imap_uidset:parse(UidSetString),
+            start_message_peek(Imap, FolderPath, FolderUid, Notification, Key, egara_imap_uidset:next_uid(UidSet));
+        _ ->
+            Result = generate_message_event_keys_and_store(State, FolderUid, Notification),
+            post_process_event(Key, Result, State)
+    end,
     again;
 post_process_event(Key, ok, _State) ->
     %%lager:info("Done with ~p", [Key]),
