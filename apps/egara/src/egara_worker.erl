@@ -279,7 +279,6 @@ post_process_event(Key, { get_message_mailbox_metadata, Notification }, State) -
     start_imap_mailbox_metadata_fetch({ imap_message_mailbox_metadata, Folder, Key, Notification }, Folder, State),
     again;
 post_process_event(Key, { message_peek, FolderUid, Notification }, #state{ imap = Imap } = State) ->
-    %% Iterate UIDS
     { _, UidSetString } = uidset_from_notification(Notification),
     FolderPath = normalized_folder_path_from_notification(Notification, State),
     UidSet = egara_imap_uidset:parse(UidSetString),
