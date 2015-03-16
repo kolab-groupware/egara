@@ -26,7 +26,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -define(BATCH_SIZE, 500).
 
--record(state, { event_mapping, storage, admin_user_prefix, imap_path_delim = "/", imap_shared_prefix = none }).
+-record(state, { event_mapping, storage, imap, admin_user_prefix, imap_path_delim = "/", imap_shared_prefix = none }).
 
 start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
 
@@ -41,17 +41,20 @@ init(_Args) ->
     AdminUser = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
     AdminUserPrefix = <<AdminUser/binary, "@">>,
     State = #state{ event_mapping = EventMapping, storage = Storage, admin_user_prefix = AdminUserPrefix },
-    IMAP = poolboy:checkout(egara_imap_pool, false, 10),
-    egara_imap:connect(IMAP),
-    egara_imap:get_path_tokens(IMAP, self(), get_path_tokens),
-    poolboy:checkin(egara_imap_pool, IMAP),
+    Imap = poolboy:checkout(egara_imap_pool, false, 10),
+    egara_imap:connect(Imap),
+    egara_imap:get_path_tokens(Imap, self(), get_path_tokens),
+    poolboy:checkin(egara_imap_pool, Imap),
     { ok, State }.
 
 handle_call(_Request, _From, State) ->
     { reply, ok, State }.
 
 handle_cast(process_events, State) ->
-    process_as_many_events_as_possible(State, ?BATCH_SIZE),
+    Imap = poolboy:checkout(egara_imap_pool, false, 10),
+    TempState = State#state{ imap = Imap },
+    process_as_many_events_as_possible(TempState, ?BATCH_SIZE),
+    poolboy:checkin(egara_imap_pool, Imap),
     { noreply, State };
 
 handle_cast(_Msg, State) ->
@@ -166,9 +169,9 @@ create_message_history_entry(State, NewFolderUid, Notification, OldFolderUri) ->
     OldFolderUid = egara_storage:fetch_folder_uid(State#state.storage, OldFolderPath),
     store_message_history_entry_with_oldFolderUid(State, Timestamp, NewFolderUid, NewUidSet, OldFolderPath, OldFolderUid, OldUidSet).
 
-store_message_history_entry_with_oldFolderUid(_State, Timestamp, NewFolderUid, NewUidSet, OldFolderPath, notfound, OldUidSet) ->
+store_message_history_entry_with_oldFolderUid(State, Timestamp, NewFolderUid, NewUidSet, OldFolderPath, notfound, OldUidSet) ->
     %% have to get the old folder uid
-    start_imap_mailbox_metadata_fetch({ historyentry_old_mailbox_metadata, Timestamp, NewFolderUid, NewUidSet, OldFolderPath, OldUidSet }, OldFolderPath);
+    start_imap_mailbox_metadata_fetch({ historyentry_old_mailbox_metadata, Timestamp, NewFolderUid, NewUidSet, OldFolderPath, OldUidSet }, OldFolderPath, State);
 store_message_history_entry_with_oldFolderUid(State, Timestamp, NewFolderUid, NewUidSet, _OldFolderPath, OldFolderUid, OldUidSet) ->
     create_message_history_entry(State, Timestamp, NewFolderUid, NewUidSet, OldFolderUid, OldUidSet).
 
@@ -231,14 +234,14 @@ notification_assigned(State, { Key, Notification } ) ->
 
 post_process_event(Key, { get_mailbox_metadata, Notification }, State) ->
     Folder = normalized_folder_path_from_notification(Notification, State),
-    start_imap_mailbox_metadata_fetch({ imap_mailbox_metadata, Folder, Key, Notification }, Folder);
+    start_imap_mailbox_metadata_fetch({ imap_mailbox_metadata, Folder, Key, Notification }, Folder, State);
 post_process_event(Key, { get_message_mailbox_metadata, Notification }, State) ->
     Folder = normalized_folder_path_from_notification(Notification, State),
-    start_imap_mailbox_metadata_fetch({ imap_message_mailbox_metadata, Folder, Key, Notification }, Folder);
+    start_imap_mailbox_metadata_fetch({ imap_message_mailbox_metadata, Folder, Key, Notification }, Folder, State);
 post_process_event(Key, { message_peek, FolderUid, Notification }, State) ->
     { _, [Message | _] } = uidset_from_notification(Notification),
     Folder = normalized_folder_path_from_notification(Notification, State),
-    start_message_peek({ message_peek, FolderUid, Key, Notification }, Folder, Message);
+    start_message_peek({ message_peek, FolderUid, Key, Notification }, Folder, Message, State);
 post_process_event(Key, ok, _State) ->
     %%lager:info("Done with ~p", [Key]),
     egara_notification_queue:remove(Key),
@@ -355,19 +358,15 @@ stored_folder_uid_from_notification(State, Notification) ->
     Folder = normalized_folder_path_from_notification(Notification, State),
     egara_storage:fetch_folder_uid(State#state.storage, Folder).
 
-start_imap_mailbox_metadata_fetch(Data, Folder) ->
-    IMAP = poolboy:checkout(egara_imap_pool, false, 10),
+start_imap_mailbox_metadata_fetch(Data, Folder, #state{ imap = Imap }) ->
     %%lager:info("fetchng mailbox info over IMAP for ~p with data ~p", [Folder, Data]),
-    egara_imap:connect(IMAP), %%TODO, this should be done less often, even though it's nearly a noop here
-    egara_imap:get_folder_annotations(IMAP, self(), Data, Folder),
-    poolboy:checkin(egara_imap_pool, IMAP).
+    egara_imap:connect(Imap), %%TODO, this should be done less often, even though it's nearly a noop here
+    egara_imap:get_folder_annotations(Imap, self(), Data, Folder).
 
-start_message_peek(Data, Folder, Message) ->
-    IMAP = poolboy:checkout(egara_imap_pool, false, 10),
+start_message_peek(Data, Folder, Message, #state{ imap = Imap }) ->
     %%lager:info("fetching message headers/flags/body over IMAP for ~p ~p with data ~p", [Folder, Message, Data]),
-    egara_imap:connect(IMAP), %%TODO, this should be done less often, even though it's nearly a noop here
-    egara_imap:get_message_headers_and_body(IMAP, self(), Data, Folder, Message),
-    poolboy:checkin(egara_imap_pool, IMAP).
+    egara_imap:connect(Imap), %%TODO, this should be done less often, even though it's nearly a noop here
+    egara_imap:get_message_headers_and_body(Imap, self(), Data, Folder, Message).
 
 as_binary(Value) when is_binary(Value) -> Value;
 as_binary(Value) when is_list(Value) -> erlang:list_to_binary(Value).
