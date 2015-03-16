@@ -23,6 +23,7 @@
 -export([ start_link/0,
           store_notification/3,
           store_userdata/3,
+          store_message_history_entry/3,
           fetch_userdata_for_login/2,
           store_folder_uid/3,
           fetch_folder_uid/2
@@ -115,6 +116,7 @@ handle_call({ fetch_folder_uid, Folder }, _From, State) when is_binary(Folder) -
     { reply, Response, NewState };
 
 handle_call({ store_message_history_entry, Key, Value}, _From, State) when is_binary(Key), is_binary(Value) ->
+    %%lager:info("Storing history entry ~p => ~p", [Key, Value]),
     NewState = ensure_connected(State),
     Storable = riakc_obj:new(message_timeline_bucket(), Key, Value),
     Rv = riakc_pb_socket:put(NewState#state.riak_connection, Storable),
