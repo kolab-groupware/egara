@@ -47,6 +47,7 @@ get_folder_annotations(PID, From, ResponseToken, Folder) when is_binary(Folder) 
     gen_fsm:send_all_state_event(PID, { ready_command, Command }).
 
 get_message_headers_and_body(PID, From, ResponseToken, Folder, MessageID) ->
+    lager:info("SELECT_DEBUG: peeking message ~p ~p", [Folder, MessageID]),
     Command = #command{ mbox = Folder, message = egara_imap_command_peek_message:new(MessageID),
                         from = From, response_token = ResponseToken,
                         parse_fun = fun egara_imap_command_peek_message:parse/2 },
@@ -224,8 +225,10 @@ send_command(Command, State) ->
     send_command(fun gen_tcp:send/2, Command, State).
 
 send_command(Fun, #command{ mbox = undefined } = Command, State) ->
+    lager:info("SELECT_DEBUG issuing command without mbox: ~p", [Command#command.message]),
     send_command_now(Fun, Command, State);
 send_command(Fun, #command{ mbox = MBox } = Command, #state{ current_mbox = CurrentMbox } = State) ->
+    lager:info("SELECT_DEBUG issuing command with mbox ~p (current: ~p, equal -> ~p): ~p", [MBox, CurrentMbox, (MBox =:= CurrentMbox), Command#command.message]),
     send_command_or_select_mbox(Fun, Command, State, MBox, MBox =:= CurrentMbox).
 
 send_command_or_select_mbox(Fun, Command, State, _MBox, true) ->
@@ -235,6 +238,7 @@ send_command_or_select_mbox(Fun, DelayedCommand, State, MBox, false) ->
     SelectMessage = egara_imap_command_examine:new(MBox),
     SelectCommand = #command{ message = SelectMessage, parse_fun = fun egara_imap_command_examine:parse/2,
                               from = self(), response_token = { selected, MBox } },
+    lager:info("SELECT_DEBUG: Doing a select first ~p", [SelectMessage]),
     send_command_now(Fun, SelectCommand, NextState).
 
 send_command_now(Fun, #command{ message = Message } = Command, #state{ command_serial = Serial, socket = Socket } = State) ->
