@@ -139,7 +139,7 @@ handle_event(connect, disconnected, State) ->
     gen_fsm:send_event(self(), connect),
     { next_state, disconnected, State };
 handle_event(connect, _Statename, State) ->
-    lager:info("Already connected to IMAP server!"),
+    %%lager:info("Already connected to IMAP server!"),
     { next_state, _Statename, State };
 handle_event(disconnect, _StateName, State) ->
     close_socket(State),
