@@ -37,10 +37,10 @@ is_no_token_found(Data, _Tag, _) ->
     { fini, error }.
 
 is_bad_token_found(Data, Tag, nomatch) ->
-    { finis, ok };
+    { fini, ok };
 is_bad_token_found(Data, _Tag, _) ->
     lager:error("Could not examine folder: ~p", [Data]),
-    { finis, error }.
+    { fini, error }.
 
 %% Private API
 
