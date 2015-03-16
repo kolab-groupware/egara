@@ -47,7 +47,7 @@ get_folder_annotations(PID, From, ResponseToken, Folder) when is_binary(Folder) 
     gen_fsm:send_all_state_event(PID, { ready_command, Command }).
 
 get_message_headers_and_body(PID, From, ResponseToken, Folder, MessageID) ->
-    lager:info("SELECT_DEBUG: peeking message ~p ~p", [Folder, MessageID]),
+    %%lager:info("SELECT_DEBUG: peeking message ~p ~p", [Folder, MessageID]),
     Command = #command{ mbox = Folder, message = egara_imap_command_peek_message:new(MessageID),
                         from = From, response_token = ResponseToken,
                         parse_fun = fun egara_imap_command_peek_message:parse/2 },
@@ -165,7 +165,7 @@ handle_info({tcp_closed, Socket}, _StateName, #state{ socket = Socket, host = Ho
     lager:info("~p Client ~p disconnected.\n", [self(), Host]),
     { stop, normal, State };
 handle_info({ { selected, MBox }, ok }, StateName, State) ->
-    lager:info("~p Selected mbox ~p", [self(), MBox]),
+    %%lager:info("~p Selected mbox ~p", [self(), MBox]),
     { next_state, StateName, State#state{ current_mbox = MBox } };
 handle_info({ { selected, MBox }, _ }, StateName, State) ->
     lager:info("Failed to select mbox ~p", [MBox]),
@@ -225,10 +225,10 @@ send_command(Command, State) ->
     send_command(fun gen_tcp:send/2, Command, State).
 
 send_command(Fun, #command{ mbox = undefined } = Command, State) ->
-    lager:info("~p SELECT_DEBUG issuing command without mbox: ~p", [self(), Command#command.message]),
+    %%lager:info("~p SELECT_DEBUG issuing command without mbox: ~p", [self(), Command#command.message]),
     send_command_now(Fun, Command, State);
 send_command(Fun, #command{ mbox = MBox } = Command, #state{ current_mbox = CurrentMbox } = State) ->
-    lager:info("~p SELECT_DEBUG issuing command with mbox ~p (current: ~p, equal -> ~p): ~p", [self(), MBox, CurrentMbox, (MBox =:= CurrentMbox), Command#command.message]),
+    %%lager:info("~p SELECT_DEBUG issuing command with mbox ~p (current: ~p, equal -> ~p): ~p", [self(), MBox, CurrentMbox, (MBox =:= CurrentMbox), Command#command.message]),
     send_command_or_select_mbox(Fun, Command, State, MBox, MBox =:= CurrentMbox).
 
 send_command_or_select_mbox(Fun, Command, State, _MBox, true) ->
@@ -238,7 +238,7 @@ send_command_or_select_mbox(Fun, DelayedCommand, State, MBox, false) ->
     SelectMessage = egara_imap_command_examine:new(MBox),
     SelectCommand = #command{ message = SelectMessage, parse_fun = fun egara_imap_command_examine:parse/2,
                               from = self(), response_token = { selected, MBox } },
-    lager:info("~p SELECT_DEBUG: Doing a select first ~p", [self(), SelectMessage]),
+    %%lager:info("~p SELECT_DEBUG: Doing a select first ~p", [self(), SelectMessage]),
     send_command_now(Fun, SelectCommand, NextState).
 
 send_command_now(Fun, #command{ message = Message } = Command, #state{ command_serial = Serial, socket = Socket } = State) ->
