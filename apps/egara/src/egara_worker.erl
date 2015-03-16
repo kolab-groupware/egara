@@ -199,8 +199,8 @@ store_message_event_with_keys(Storage, Keys, Notification, _SourceOfUidSet, _Uid
 
 uidset_from_notification(Notification) ->
     case proplists:get_value(<<"uidset">>, Notification, notfound) of
-        notfound -> { uri, [egara_imap_utils:extract_uidset_from_uri(proplists:get_value(<<"uri">>, Notification))] };
-        UidSet -> { notification, binary:split(UidSet, <<",">>, [trim, global]) }
+        notfound -> { uri, egara_imap_utils:extract_uidset_from_uri(proplists:get_value(<<"uri">>, Notification)) };
+        UidSet -> { notification, UidSet }
     end.
 
 add_events_to_dict(Type, Events, EventMap) when is_list(Events) ->
