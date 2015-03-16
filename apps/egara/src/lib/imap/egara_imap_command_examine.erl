@@ -23,7 +23,7 @@
 %% Public API
 new(MBox) when is_binary(MBox) -> <<"EXAMINE ", MBox/binary>>.
 
-parse(Data, Tag) when is_binary(Data) -> result(binary:match(Data, <<Tag/binary, " BAD">>)).
+parse(Data, Tag) when is_binary(Data) -> lager:info("SELECT_DEBUG ~p ~p", [Data, Tag]), result(binary:match(Data, <<Tag/binary, " BAD">>)).
 
 result(nomatch) -> { fini, ok };
 result(_) -> { fini, error }.
