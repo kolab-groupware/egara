@@ -19,7 +19,7 @@
 -behavior(egara_incoming_handler).
 
 %% API
--export([ start_reception/0, launchRecvCyrusNotification/1, recvCyrusNotification/3 ]).
+-export([start_reception/0, launchRecvCyrusNotification/1, recvCyrusNotification/4]).
 
 -include_lib("kernel/include/file.hrl").
 
@@ -78,7 +78,6 @@ cherryPickNotification(Terms) ->
     [H|T] = Terms,
     cherryPickNotification(T, null, H).
 
-
 launchRecvCyrusNotification(Socket) ->
     % this mapping gets passed to proplists:expand to translate/normalize event names
     EventMappings = [
@@ -91,24 +90,45 @@ launchRecvCyrusNotification(Socket) ->
                        { <<"event">>, <<"MessageMove">>}
                      }
                     ],
-    { ok, spawn_link(?MODULE, recvCyrusNotification, [Socket, EventMappings, ?MIN_SLEEP_MS])  }.
+    { ok, spawn_link(?MODULE, recvCyrusNotification, [Socket, EventMappings, none, ?MIN_SLEEP_MS])  }.
 
-recvCyrusNotification(Socket, EventMappings, SleepMs) ->
+recvCyrusNotification(Socket, EventMappings, JsonContinuation, SleepMs) ->
     case procket:recvfrom(Socket, 16#FFFF) of
         { error, eagain } ->
             NewSleepMs = min(SleepMs * 2, ?MAX_SLEEP_MS),
             timer:sleep(NewSleepMs),
-            recvCyrusNotification(Socket, EventMappings, NewSleepMs);
+            recvCyrusNotification(Socket, EventMappings, JsonContinuation, NewSleepMs);
         { ok, Buf } ->
             Components = binary:split(Buf, <<"\0">>, [global]),
             %%lager:info("~p", [Components]),
             Json = cherryPickNotification(Components),
-            try jsx:decode(Json) of
-                Term -> egara_notifications_receiver:notification_received(proplists:expand(EventMappings, Term))
-            catch
-                error:_ -> ok
-            end,
-
-            recvCyrusNotification(Socket, EventMappings, ?MIN_SLEEP_MS)
+            NewJsonContinuation = decode(Json, EventMappings, JsonContinuation),
+            recvCyrusNotification(Socket, EventMappings, NewJsonContinuation, ?MIN_SLEEP_MS)
     end.
+
+%% returns the next continuation, or none if .. well .. none
+decode(Json, EventMappings, none) ->
+    try jsx:decode(Json, [stream]) of
+        { incomplete, F } -> check_complete(F, EventMappings);
+        Term -> notification_received(Term, EventMappings), none
+    catch
+        error:_ -> none
+    end;
+decode(Json, EventMappings, Continuation) ->
+    try Continuation(Json) of
+        { incomplete, F } -> check_complete(F, EventMappings);
+        Term -> notification_received(Term, EventMappings), none
+    catch
+        error:_ -> none
+    end.
+
+check_complete(Continuation, EventMappings) ->
+    try Continuation(end_stream) of
+        Term -> notification_received(Term, EventMappings), none
+    catch
+        error:_ -> Continuation
+    end.
+
+notification_received(Term, EventMappings) ->
+    egara_notifications_receiver:notification_received(proplists:expand(EventMappings, Term)).
 
