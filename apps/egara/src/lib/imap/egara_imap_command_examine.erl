@@ -36,7 +36,7 @@ is_no_token_found(Data, _Tag, _) ->
     lager:error("Could not examine folder: ~p", [Data]),
     { fini, error }.
 
-is_bad_token_found(Data, Tag, nomatch) ->
+is_bad_token_found(_Data, _Tag, nomatch) ->
     { fini, ok };
 is_bad_token_found(Data, _Tag, _) ->
     lager:error("Could not examine folder: ~p", [Data]),
