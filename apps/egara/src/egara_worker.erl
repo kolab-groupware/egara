@@ -97,7 +97,7 @@ handle_info({ #message_peek_data{ folder_path = FolderPath, message_uid = Messag
     message_peek_iteration(MessagePeekData, Notification, State),
     { noreply, State };
 handle_info({ #message_peek_data{ notification = Notification } = MessagePeekData, Data }, State) ->
-    PeekedNotification = lists:foldl(fun(Atom, Acc) -> add_entry_to_notification(Acc, Data, Atom) end, Notification, [flags, headers, body]),
+    PeekedNotification = lists:foldl(fun(Atom, Notification) -> add_entry_to_notification(Notification, Data, Atom) end, Notification, [flags, headers, body]),
     message_peek_iteration(MessagePeekData, PeekedNotification, State),
     { noreply, State };
 handle_info(_Info, State) ->
@@ -121,10 +121,10 @@ message_peek_iteration(#message_peek_data{ folder_path = FolderPath, folder_uid 
         _ -> ok
     end.
 
+add_entry_to_notification(Notification, Data, undefined) ->
+    Notification;
 add_entry_to_notification(Notification, Data, Atom) when is_atom(Atom) ->
     add_entry_to_notification(Notification, atom_to_binary(Atom, utf8), proplists:get_value(Atom, Data));
-add_entry_to_notification(Notification, Key, undefined) when is_binary(Key) ->
-    Notification;
 add_entry_to_notification(Notification, Key, Value) when is_binary(Key) ->
     %%TODO: check if already there with proplists:get_value(Key, Data)
     [{ Key, Value } | Notification].
