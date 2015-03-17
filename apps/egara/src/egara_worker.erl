@@ -440,7 +440,8 @@ start_message_peek(Imap, FolderPath, FolderUid, Notification, Key, uri, UidSetSt
     NotificationWithUidSet = [ { <<"uidset">>, UidSetString } | Notification ],
     UidSet = egara_imap_uidset:parse(UidSetString),
     start_message_peek(Imap, FolderPath, FolderUid, NotificationWithUidSet, Key, egara_imap_uidset:next_uid(UidSet));
-start_message_peek(Imap, FolderPath, FolderUid, Notification, Key, _, UidSet) ->
+start_message_peek(Imap, FolderPath, FolderUid, Notification, Key, _, UidSetString) ->
+    UidSet = egara_imap_uidset:parse(UidSetString),
     start_message_peek(Imap, FolderPath, FolderUid, Notification, Key, egara_imap_uidset:next_uid(UidSet)).
 
 start_message_peek(_Imap, _FolderPath, _FolderUid, _Notification, _NotificationQueueKey, { none, _ }) ->
