@@ -27,6 +27,7 @@
 -define(BATCH_SIZE, 500).
 
 -record(state, { archival = true, event_mapping, storage, imap, admin_user_prefix, imap_path_delim = "/", imap_shared_prefix = none }).
+-record(message_peek_data, { folder_path, folder_uid, notification, notification_queue_key, message_uid, uid_set }).
 
 start_link(Args) -> gen_server:start_link(?MODULE, Args, []).
 
@@ -87,21 +88,17 @@ handle_info({ { historyentry_old_mailbox_metadata, Timestamp, NewFolderUid, NewU
     egara_storage:store_folder_uid(State#state.storage, OldFolderPath, OldFolderUid),
     store_next_message_history_entry(State, Timestamp, NewFolderUid, egara_imap_uidset:next_uid(NewUidSet), OldFolderUid, egara_imap_uidset:next_uid(OldUidSet)),
     { noreply, State };
-handle_info({ { message_peek, FolderUid, NotificationQueueKey, Notification }, mailboxnotfound }, State) ->
-    Folder = normalized_folder_path_from_notification(Notification, State),
-    lager:error("Mailbox ~p (~p) could not be found for message notification { ~s }", [Folder, FolderUid, Notification]),
-    post_process_event(NotificationQueueKey, unrecoverable_error, State),
+handle_info({ #message_peek_data{ folder_path = FolderPath, folder_uid = FolderUid, notification = Notification } = MessagePeekData, mailboxnotfound }, State) ->
+    lager:error("Mailbox ~p (~p) could not be found for message notification { ~p }", [FolderPath, FolderUid, Notification]),
+    message_peek_iteration(MessagePeekData, Notification, State),
     { noreply, State };
-handle_info({ { message_peek, FolderPath, FolderUid, Notification, NotificationQueueKey, MessageUid, UidSet }, Data }, State) ->
-    PeekedNotification = lists:foldl(fun(Atom, Acc) -> add_entry_to_notification(Acc, Data, Atom) end,
-                                     Notification, [flags, headers, body]),
-    generate_message_event_key_and_store(State, FolderUid, PeekedNotification, MessageUid),
-    UidSetIteration = egara_imap_uidset:next_uid(UidSet),
-    case start_message_peek(State#state.imap, FolderPath, FolderUid, Notification, NotificationQueueKey, UidSetIteration) of
-        done ->
-            post_process_event(NotificationQueueKey, ok, State);
-        _ -> ok
-    end,
+handle_info({ #message_peek_data{ folder_path = FolderPath, message_uid = MessageUid, notification = Notification } = MessagePeekData, error }, State) ->
+    lager:error("Message ~p (~p) could not be found for message notification { ~p }", [MessageUid, FolderPath, Notification]),
+    message_peek_iteration(MessagePeekData, Notification, State),
+    { noreply, State };
+handle_info({ #message_peek_data{ notification = Notification } = MessagePeekData, Data }, State) ->
+    PeekedNotification = lists:foldl(fun(Atom, Acc) -> add_entry_to_notification(Acc, Data, Atom) end, Notification, [flags, headers, body]),
+    message_peek_iteration(MessagePeekData, PeekedNotification, State),
     { noreply, State };
 handle_info(_Info, State) ->
     { noreply, State }.
@@ -113,6 +110,17 @@ code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 %% private API
+message_peek_iteration(#message_peek_data{ folder_path = FolderPath, folder_uid = FolderUid, notification = Notification,
+                                           notification_queue_key = NotificationQueueKey, message_uid = MessageUid, uid_set = UidSet },
+                         StorableNotification, State) ->
+    generate_message_event_key_and_store(State, FolderUid, StorableNotification, MessageUid),
+    UidSetIteration = egara_imap_uidset:next_uid(UidSet),
+    case start_message_peek(State#state.imap, FolderPath, FolderUid, Notification, NotificationQueueKey, UidSetIteration) of
+        done ->
+            post_process_event(NotificationQueueKey, ok, State);
+        _ -> ok
+    end.
+
 add_entry_to_notification(Notification, Data, Atom) when is_atom(Atom) ->
     add_entry_to_notification(Notification, atom_to_binary(Atom, utf8), proplists:get_value(Atom, Data));
 add_entry_to_notification(Notification, Key, undefined) when is_binary(Key) ->
@@ -418,7 +426,9 @@ start_message_peek(_Imap, _FolderPath, _FolderUid, _Notification, _NotificationQ
     done;
 start_message_peek(Imap, FolderPath, FolderUid, Notification, NotificationQueueKey, { MessageUid, UidSet }) ->
     %%lager:info("fetching message headers/flags/body over IMAP for message ~p in ~p (UID: ~p)", [MessageUid, FolderPath, FolderUid]),
-    Data = { message_peek, FolderPath, FolderUid, Notification, NotificationQueueKey, MessageUid, UidSet },
+    Data = #message_peek_data{ folder_path = FolderPath, folder_uid = FolderUid,
+                               notification = Notification, notification_queue_key = NotificationQueueKey,
+                               message_uid = MessageUid, uid_set = UidSet },
     egara_imap:connect(Imap),
     egara_imap:get_message_headers_and_body(Imap, self(), Data, FolderPath, MessageUid),
     continue.
