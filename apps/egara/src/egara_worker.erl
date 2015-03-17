@@ -371,8 +371,8 @@ userid_from_notification(Notification) ->
 
 timestamp_from_notification(Notification) ->
     case proplists:get_value(<<"timestamp">>, Notification, unknown) of
-        unknown -> erlang:list_to_binary(egara_utils:current_timestamp());
-        Timestamp -> Timestamp
+        unknown -> egara_utils:current_timestamp();
+        Timestamp -> egara_utils:normalize_timestamp(Timestamp)
     end.
 
 ensure_username(_State, Notification, undefined) ->
