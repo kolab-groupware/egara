@@ -18,8 +18,5 @@
 -module(egara_utils).
 -export([ current_timestamp/0 ]).
 
-current_timestamp() ->
-    TS = { _ , _, Micro } = os:timestamp(),
-    { { Year,Month,Day }, { Hour,Minute,Second } } = calendar:now_to_universal_time(TS),
-    io_lib:format("~4w-~2..0w-~2..0wT~2w:~2..0w:~2..0w.~6..0w", [Year, Month, Day, Hour, Minute, Second, Micro]).
+current_timestamp() -> iso8601:format(os:timestamp()).
 
