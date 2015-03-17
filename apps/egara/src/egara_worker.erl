@@ -294,10 +294,10 @@ post_process_event(Key, { get_message_mailbox_metadata, Notification }, State) -
 post_process_event(Key, { message_peek, FolderUid, Notification }, #state{ imap = Imap } = State) ->
     case State#state.archival of
         true ->
-            { _, UidSetString } = uidset_from_notification(Notification),
+            { UidSetFrom, UidSetString } = uidset_from_notification(Notification),
             FolderPath = normalized_folder_path_from_notification(Notification, State),
             UidSet = egara_imap_uidset:parse(UidSetString),
-            start_message_peek(Imap, FolderPath, FolderUid, Notification, Key, egara_imap_uidset:next_uid(UidSet));
+            start_message_peek(Imap, FolderPath, FolderUid, Notification, Key, UidSetFrom, UidSet);
         _ ->
             Result = generate_message_event_keys_and_store(State, FolderUid, Notification),
             post_process_event(Key, Result, State)
@@ -423,6 +423,12 @@ start_imap_mailbox_metadata_fetch(Data, Folder, #state{ imap = Imap }) ->
     %%lager:info("fetchng mailbox info over IMAP for ~p with data ~p", [Folder, Data]),
     egara_imap:connect(Imap), %%TODO, this should be done less often, even though it's nearly a noop here
     egara_imap:get_folder_annotations(Imap, self(), Data, Folder).
+
+start_message_peek(Imap, FolderPath, FolderUid, Notification, Key, uri, UidSet) ->
+    NotificationWithUidSet = [ { <<"uidset">>, UidSet } | Notification ],
+    start_message_peek(Imap, FolderPath, FolderUid, NotificationWithUidSet, Key, egara_imap_uidset:next_uid(UidSet));
+start_message_peek(Imap, FolderPath, FolderUid, Notification, Key, _, UidSet) ->
+    start_message_peek(Imap, FolderPath, FolderUid, Notification, Key, egara_imap_uidset:next_uid(UidSet)).
 
 start_message_peek(_Imap, _FolderPath, _FolderUid, _Notification, _NotificationQueueKey, { none, _ }) ->
     done;
