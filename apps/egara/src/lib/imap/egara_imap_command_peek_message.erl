@@ -37,8 +37,8 @@ parse(Data, Tag) when is_binary(Data) ->
 %% Private API
 log_error(Reason) -> lager:error("Could not fetch message: ~p", [Reason]).
 
-get_past_headers(<<" FETCH ", Data/binary>>) ->
-    find_open_parens(Data);
+get_past_headers(<<" OK ", Data/binary>>) -> { fini, [] };
+get_past_headers(<<" FETCH ", Data/binary>>) -> find_open_parens(Data);
 get_past_headers(<<_, Data/binary>>) -> get_past_headers(Data);
 get_past_headers(<<>>) -> { error, <<"Unparsable">> }.
 
