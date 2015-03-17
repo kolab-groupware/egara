@@ -16,7 +16,11 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara_imap_utils).
--export([extract_path_from_uri/3, extract_uidset_from_uri/1, mailbox_uid_header_name/0]).
+-export([
+         extract_path_from_uri/3, extract_uidset_from_uri/1,
+         header_name/1,
+         check_response_for_failure/2
+        ]).
 
 %% Translate the folder name in to a fully qualified folder path such as it
 %% would be used by a cyrus administrator.
@@ -38,6 +42,10 @@ extract_uidset_from_uri(URI) when is_binary(URI) ->
         { Semicolon, _ } -> binary:part(URI, UIDStart - 1, Semicolon - UIDStart + 1)
     end.
 
+header_name(mailbox_uid) -> <<"/vendor/cmu/cyrus-imapd/uniqueid">>;
+header_name(groupware_type) -> <<"X-Kolab-Type">>;
+header_name(groupware_uid) -> <<"Subject">>;
+header_name(_) -> unknown.
 
 mailbox_uid_header_name() -> <<"/vendor/cmu/cyrus-imapd/uniqueid">>.
 

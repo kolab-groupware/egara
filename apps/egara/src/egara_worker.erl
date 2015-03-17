@@ -67,7 +67,7 @@ handle_info({ get_path_tokens, { SharedPrefix, Delim } }, State) ->
     { noreply, NewState };
 handle_info({ { imap_mailbox_metadata, Folder, NotificationQueueKey, Notification }, Metadata }, State) ->
     lager:info("Got imap_mailbox_metadata ~p", [Metadata]),
-    Uid = proplists:get_value(egara_imap_utils:mailbox_uid_header_name(), Metadata, undefined),
+    Uid = proplists:get_value(egara_imap_utils:header_name(mailbox_uid), Metadata, undefined),
     %%lager:info("Uid is ~p", [Uid]),
     NotificationWithMetadata = [ { <<"metadata">>, Metadata } | Notification ],
     Result = store_folder_notification_with_uid(Uid, Folder, NotificationWithMetadata, State#state.storage),
