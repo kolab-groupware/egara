@@ -123,6 +123,8 @@ idle(_Event, State) ->
     { next_state, idle, State }.
 
 %%TODO a variant that checks "#command{ from = undefined }" to avoid parsing responses which will go undelivered?
+wait_response(Command, State) when is_record(Command, command) ->
+    { next_state, wait_response, enque_command(Command, State) };
 wait_response({ data, _Data }, #state{ current_command = #command{ parse_fun = undefined } } = State) ->
     gen_fsm:send_event(self(), process_command_queue),
     { next_state, idle, State };
