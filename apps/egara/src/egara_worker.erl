@@ -216,18 +216,20 @@ store_next_message_history_entry(_State, _Timestamp, _NewFolderUid, { none, _ },
     ok;
 store_next_message_history_entry(State, Timestamp, NewFolderUid, { NewMessageUid, NewUidSet }, OldFolderUid, { none, OldUidSet }) ->
     NewMessageUidBin = integer_to_binary(NewMessageUid),
-    Key = <<NewMessageUidBin/binary, "::", NewFolderUid/binary, "::", Timestamp/binary>>,
+    Key = generate_history_key(NewFolderUid, NewMessageUidBin, Timestamp),
     ValueJson = <<"{ \"history\": {} }">>,
     egara_storage:store_message_history_entry(State#state.storage, Key, ValueJson),
     store_next_message_history_entry(State, Timestamp, NewFolderUid, egara_imap_uidset:next_uid(NewUidSet), OldFolderUid, egara_imap_uidset:next_uid(OldUidSet));
 store_next_message_history_entry(State, Timestamp, NewFolderUid, { NewMessageUid, NewUidSet }, OldFolderUid, { OldMessageUid, OldUidSet }) ->
     NewMessageUidBin = integer_to_binary(NewMessageUid),
-    Key = <<NewMessageUidBin/binary, "::", NewFolderUid/binary, "::", Timestamp/binary>>,
     OldMessageUidBin = integer_to_binary(OldMessageUid),
+    Key = generate_history_key(NewFolderUid, NewMessageUidBin, Timestamp),
     ValueTerm = [{ <<"history">>, [{ <<"imap">>, [{ <<"previous_id">>, OldMessageUidBin }, { <<"previous_folder">>, OldFolderUid }] }] }],
     ValueJson = jsx:encode(ValueTerm),
     egara_storage:store_message_history_entry(State#state.storage, Key, ValueJson),
     store_next_message_history_entry(State, Timestamp, NewFolderUid, egara_imap_uidset:next_uid(NewUidSet), OldFolderUid, egara_imap_uidset:next_uid(OldUidSet)).
+
+generate_history_key(FolderUid, MessageUid, Timestamp) -> <<"message::", FolderUid/binary, "::", MessageUid/binary, "::", Timestamp/binary>>.
 
 store_message_event_with_keys(Storage, Keys, Notification, uri, UidSet) ->
     %% stores the Uidset into the notification to normalize the notification

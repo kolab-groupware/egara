@@ -127,7 +127,7 @@ be mapped to the correct object at a given point in time.
 
 The format of the key used is:
 
-    <Message UID>::<Folder>::<Timestamp>
+    message::<Folder>::<Message UID>::<Timestamp>
 
 The data consists of JSON in the following format:
 
