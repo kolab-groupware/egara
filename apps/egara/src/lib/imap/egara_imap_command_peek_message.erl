@@ -23,7 +23,7 @@
 
 %% Public API
 new(MessageID) when is_integer(MessageID) -> new(integer_to_binary(MessageID));
-new(MessageID) when is_binary(MessageID) -> <<"FETCH ",  MessageID/binary, " (FLAGS BODY.PEEK[HEADER] BODY.PEEK[TEXT])">>.
+new(MessageID) when is_binary(MessageID) -> <<"UID FETCH ",  MessageID/binary, " (FLAGS BODY.PEEK[HEADER] BODY.PEEK[TEXT])">>.
 
 continue_parse(Data, _Tag, #parse_state{ body_size = Size, results = Results, data = PrevData }) ->
     try_body_parse(<<Data/binary, PrevData/binary>>, Size, Results).
@@ -37,7 +37,7 @@ parse(Data, Tag) when is_binary(Data) ->
 %% Private API
 log_error(Reason) -> lager:error("Could not fetch message: ~p", [Reason]).
 
-get_past_headers(<<"FETCH ", Data/binary>>) -> 
+get_past_headers(<<" FETCH ", Data/binary>>) ->
     find_open_parens(Data);
 get_past_headers(<<_, Data/binary>>) -> get_past_headers(Data);
 get_past_headers(<<>>) -> { error, <<"Unparsable">> }.
