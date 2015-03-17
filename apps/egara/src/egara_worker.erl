@@ -171,13 +171,13 @@ generate_message_event_key_and_store(#state{ storage = Storage }, FolderUid, Not
 
 generate_message_event_keys(FolderUid, Timestamp, UidSetString) ->
     UidSet = egara_imap_uidset:parse(UidSetString),
-    generate_message_event_key(FolderUid, Timestamp, [], egara_imap_uidset:next_uid(UidSet)).
+    generate_message_event_keys(FolderUid, Timestamp, [], egara_imap_uidset:next_uid(UidSet)).
 
-generate_message_event_key(_FolderUid, _Timestamp, Acc, { none, _ }) ->
+generate_message_event_keys(_FolderUid, _Timestamp, Acc, { none, _ }) ->
     Acc;
-generate_message_event_key(FolderUid, Timestamp, Acc, { Uid, UidSet }) ->
+generate_message_event_keys(FolderUid, Timestamp, Acc, { Uid, UidSet }) ->
     Key = generate_message_event_key(FolderUid, Timestamp, Uid),
-    generate_message_event_key(FolderUid, Timestamp, [Key|Acc], egara_imap_uidset:next_uid(UidSet)).
+    generate_message_event_keys(FolderUid, Timestamp, [Key|Acc], egara_imap_uidset:next_uid(UidSet)).
 
 generate_message_event_key(FolderUid, Timestamp, MessageUid) when is_integer(MessageUid) ->
     UidBin = integer_to_binary(MessageUid),
