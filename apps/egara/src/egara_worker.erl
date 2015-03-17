@@ -238,6 +238,19 @@ store_message_event_with_keys(Storage, Keys, Notification, uri, UidSetString) ->
 store_message_event_with_keys(Storage, Keys, Notification, _SourceOfUidSet, _UidSet) ->
     egara_storage:store_notification(Storage, Keys, Notification).
 
+groupware_uid_from_notification(Notification) ->
+    groupware_uid_from_headers(proplists:get_value(<<"headers">>, Notification)).
+
+groupware_uid_from_headers(undefined) ->
+    undefined;
+groupware_uid_from_headers(Headers) ->
+    groupware_uid_from_headers(Headers, proplists:get_value(<<"X-Kolab-Type">>, Headers)).
+
+groupware_uid_from_headers(Headers, undefined) ->
+    undefined;
+groupware_uid_from_headers(Headers, _) ->
+    proplists:get_value(<<"Subject">>, Headers).
+
 uidset_from_notification(Notification) ->
     case proplists:get_value(<<"uidset">>, Notification, notfound) of
         notfound -> { uri, egara_imap_utils:extract_uidset_from_uri(proplists:get_value(<<"uri">>, Notification)) };
