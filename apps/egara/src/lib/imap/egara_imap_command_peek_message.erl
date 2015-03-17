@@ -28,23 +28,14 @@ new(MessageID) when is_binary(MessageID) -> <<"FETCH ",  MessageID/binary, " (FL
 continue_parse(Data, _Tag, #parse_state{ body_size = Size, results = Results, data = PrevData }) ->
     try_body_parse(<<Data/binary, PrevData/binary>>, Size, Results).
 
-parse(<<"* ", _/binary>> = Data, _Tag) ->
-    %%lager:info("Data is: ~p", [Data]),
-    Result = get_past_headers(Data),
-    %%lager:info("Result is: ~p", [Result]),
-    Result;
-parse(Data, _Tag) when is_binary(Data) ->
-    %%lager:info("data received for peek: ~s", [Data]),
-    %% get rid of the trailing \r\n
-    Trimmed = binary:part(Data, 0, byte_size(Data) - 2),
-    Result = parse_error(Data, Trimmed),
-    %%lager:warning("Error is: ~p", [Result]),
-    Result.
+parse(Data, Tag) when is_binary(Data) ->
+    case egara_imap_utils:check_response_for_failure(Data, Tag) of
+        ok -> get_past_headers(Data);
+        { _, Reason } -> log_error(Reason), { fini, error }
+    end.
 
 %% Private API
-parse_error(_OrigData, <<"BAD ", Reason/binary>>) -> { error, Reason };
-parse_error(OrigData, <<_, Data/binary>>) -> parse_error(OrigData, Data);
-parse_error(OrigData, <<>>) -> { error, OrigData }.
+log_error(Reason) -> lager:error("Could not fetch message: ~p", [Reason]).
 
 get_past_headers(<<"FETCH ", Data/binary>>) -> 
     find_open_parens(Data);

@@ -47,9 +47,29 @@ header_name(groupware_type) -> <<"X-Kolab-Type">>;
 header_name(groupware_uid) -> <<"Subject">>;
 header_name(_) -> unknown.
 
-mailbox_uid_header_name() -> <<"/vendor/cmu/cyrus-imapd/uniqueid">>.
+check_response_for_failure(Data, Tag) when is_binary(Data), is_binary(Tag) ->
+    NoToken = <<Tag/binary, " NO">>,
+    NoTokenLength = byte_size(NoToken),
+    is_no_token_found(Data, Tag, binary:match(Data, NoToken, [ { scope, { 0, NoTokenLength } } ])).
 
 %% Private
+is_no_token_found(Data, Tag, nomatch) ->
+    BadToken = <<Tag/binary, " BAD">>,
+    BadTokenLength = byte_size(BadToken),
+    is_bad_token_found(Data, Tag, binary:match(Data, BadToken, [ { scope, { 0, BadTokenLength } } ]));
+is_no_token_found(Data, _Tag, { Start, Length }) ->
+    ReasonStart = Start + Length + 1,
+    %% -2 is due to the traling \r\n
+    Reason = binary:part(Data, ReasonStart, byte_size(Data) - ReasonStart - 2),
+    { no, Reason }.
+
+is_bad_token_found(_Data, _Tag, nomatch) ->
+    ok;
+is_bad_token_found(Data, _Tag, { Start, Length }) ->
+    ReasonStart = Start + Length + 1,
+    %% -2 is due to the traling \r\n
+    Reason = binary:part(Data, ReasonStart, byte_size(Data) - ReasonStart - 2),
+    { bad, Reason }.
 
 imap_folder_path_from_parts(none, _HierarchyDelim, none, _Domain, Path) ->
     Path;
