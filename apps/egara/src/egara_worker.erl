@@ -116,7 +116,7 @@ message_peek_received(State, #message_peek_data{ folder_path = FolderPath, messa
     message_peek_iteration(MessagePeekData, Notification, State),
     { noreply, State };
 message_peek_received(State, #message_peek_data{ notification = Notification } = MessagePeekData, Data) ->
-    PeekedNotification = lists:foldl(fun(Atom, Notif) -> add_entry_to_notification(Notif, Data, Atom) end, Notification, [flags, headers, body]),
+    PeekedNotification = lists:foldl(fun(Atom, Notif) -> add_entry_to_notification(Atom, Data, Notif) end, Notification, [flags, headers, body]),
     message_peek_iteration(MessagePeekData, PeekedNotification, State),
     { noreply, State }.
 
@@ -124,7 +124,8 @@ message_peek_iteration(#message_peek_data{ timestamp = Timestamp, folder_path = 
                                            notification_queue_key = NotificationQueueKey, message_uid = MessageUid, uid_set = UidSet,
                                            old_folder_uid = OldFolderUid, old_message_uid = OldMessageUid, old_uid_set = OldUidSet },
                          StorableNotification, #state { imap = Imap, storage = Storage } = State) ->
-    egara_history_entry:store(Storage, Timestamp, FolderUid, MessageUid, OldFolderUid, OldMessageUid),
+    GroupwareUid = proplists:get_value(<<"groupware_uid">>, StorableNotification),
+    egara_history_entry:store(Storage, Timestamp, GroupwareUid, FolderUid, MessageUid, OldFolderUid, OldMessageUid),
     Key = generate_message_event_key(FolderUid, MessageUid, Timestamp),
     egara_storage:store_notification(Storage, Key, StorableNotification),
     case start_message_peek(Imap, Timestamp, Notification,
@@ -136,11 +137,19 @@ message_peek_iteration(#message_peek_data{ timestamp = Timestamp, folder_path = 
         _ -> ok
     end.
 
-add_entry_to_notification(Notification, _Data, undefined) ->
+add_entry_to_notification(undefined, _Data, Notification) ->
     Notification;
-add_entry_to_notification(Notification, Data, Atom) when is_atom(Atom) ->
-    add_entry_to_notification(Notification, atom_to_binary(Atom, utf8), proplists:get_value(Atom, Data));
-add_entry_to_notification(Notification, Key, Value) when is_binary(Key) ->
+add_entry_to_notification(headers, Data, Notification) ->
+    Headers = proplists:get_value(headers, Data),
+    NotificationWithGroupwareUid =
+    case groupware_uid_from_headers(Headers) of
+        undefined -> Notification;
+        GroupwareUid -> [{ <<"groupware_uid">>, GroupwareUid } | Notification]
+    end,
+    add_entry_to_notification(<<"headers">>, Headers, NotificationWithGroupwareUid);
+add_entry_to_notification(Atom, Data, Notification) when is_atom(Atom) ->
+    add_entry_to_notification(atom_to_binary(Atom, utf8), proplists:get_value(Atom, Data), Notification);
+add_entry_to_notification(Key, Value, Notification) when is_binary(Key) ->
     %%TODO: check if already there with proplists:get_value(Key, Data)
     [{ Key, Value } | Notification].
 
@@ -198,9 +207,6 @@ generate_message_event_key(FolderUid, MessageUid, Timestamp) when is_integer(Mes
     UidBin = integer_to_binary(MessageUid),
     <<"message::", FolderUid/binary, "::", UidBin/binary, "::", Timestamp/binary>>.
 
-
-groupware_uid_from_notification(Notification) ->
-    groupware_uid_from_headers(proplists:get_value(<<"headers">>, Notification)).
 
 groupware_uid_from_headers(undefined) ->
     undefined;
