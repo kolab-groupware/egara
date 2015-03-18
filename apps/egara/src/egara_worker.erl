@@ -94,7 +94,7 @@ handle_info({ #message_event_getoldfolderuid_data{ folder = FolderPath, folder_u
     Timestamp = timestamp_from_notification(Notification),
     start_message_peek(State#state.imap, Timestamp, Notification, FolderPath, FolderUid, UidSet, OldFolderUid, OldUidSet, NotificationQueueKey),
     { noreply, State };
-handle_info({ MessagePeekData, Result }, State) ->
+handle_info({ MessagePeekData, Result }, State) when is_record(MessagePeekData, message_peek_data) ->
     message_peek_received(State, MessagePeekData, Result),
     { noreply, State };
 handle_info(_Info, State) ->
