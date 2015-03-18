@@ -74,7 +74,7 @@ handle_info({ { imap_mailbox_metadata, Folder, NotificationQueueKey, Notificatio
     %%lager:info("Uid is ~p", [Uid]),
     NotificationWithMetadata = [ { <<"metadata">>, Metadata } | Notification ],
     Result = store_folder_notification_with_uid(Uid, Folder, NotificationWithMetadata, State#state.storage),
-    post_process_event(NotificationQueueKey, Result, State),
+    notification_processing_result(NotificationQueueKey, Result, State),
     { noreply, State };
 handle_info({ #message_event_getfolderuid_data{ folder = Folder, notification_queue_key = NotificationQueueKey,
                                                  notification = Notification, event_type = EventType }, Metadata }, State) ->
@@ -82,7 +82,7 @@ handle_info({ #message_event_getfolderuid_data{ folder = Folder, notification_qu
     FolderUid = proplists:get_value(<<"/vendor/cmu/cyrus-imapd/uniqueid">>, Metadata),
     egara_storage:store_folder_uid(State#state.storage, Folder, FolderUid),
     Result = store_message_event(State, FolderUid, Notification, EventType, NotificationQueueKey),
-    post_process_event(NotificationQueueKey, Result, State),
+    notification_processing_result(NotificationQueueKey, Result, State),
     %%lager:info("Message keys ~p, Folder Uid to be stored ~p", [Keys, FolderUid]),
     { noreply, State };
 handle_info({ #message_event_getoldfolderuid_data{ folder = FolderPath, folder_uid = FolderUid, uidset = UidSet,
@@ -133,7 +133,7 @@ message_peek_iteration(#message_peek_data{ timestamp = Timestamp, folder_path = 
                             OldFolderUid, OldUidSet,
                             NotificationQueueKey) of
         done ->
-            post_process_event(NotificationQueueKey, ok, State);
+            notification_processing_result(NotificationQueueKey, ok, State);
         _ -> ok
     end.
 
@@ -273,23 +273,23 @@ notification_assigned(State, { QueueKey, Notification } ) ->
     EventCategory = dict:find(EventType, State#state.event_mapping),
     %%lager:info("Type is ~p which maps to ~p", [EventType, EventCategory]),
     Result = process_notification_by_category(State, Notification, EventCategory, EventType, QueueKey),
-    post_process_event(QueueKey, Result, State).
+    notification_processing_result(QueueKey, Result, State).
 
-post_process_event(QueueKey, ok, _State) ->
+notification_processing_result(QueueKey, ok, _State) ->
     %%lager:info("Done with ~p", [QueueKey]),
     egara_notification_queue:remove(QueueKey),
     again;
-post_process_event(QueueKey, unrecoverable_error, _State) ->
+notification_processing_result(QueueKey, unrecoverable_error, _State) ->
     lager:error("Event ~p could not be processed, dropping on floor", [QueueKey]),
     egara_notification_queue:remove(QueueKey),
     again;
-post_process_event(QueueKey, ignore, _State) ->
+notification_processing_result(QueueKey, ignore, _State) ->
     %%lager:info("Ignoring ~p", [QueueKey]),
     egara_notification_queue:remove(QueueKey),
     again;
-post_process_event(_, continuing, _State) ->
+notification_processing_result(_, continuing, _State) ->
     again;
-post_process_event(QueueKey, _, _State) ->
+notification_processing_result(QueueKey, _, _State) ->
     egara_notification_queue:release(QueueKey, self()),
     error.
 
