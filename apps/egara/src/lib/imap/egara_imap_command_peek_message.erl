@@ -101,8 +101,10 @@ parse_header(OrigData, Results, <<$}, Rest/binary>>, Length) ->
     HeaderString = binary:part(Rest, 2, Size), %% the 2 is for \r\n
     RawHeaders = binary:split(HeaderString, <<"\r\n">>, [global]),
     Headers = filter_headers(RawHeaders),
+    %%FIXME: make sure we have enough data loaded, otherwise continue
     Remainder = binary:part(Rest, Size, byte_size(Rest) - Size),
-    parse_next_component(Remainder, [{ headers, Headers } | Results]);
+    ResultsWithHeaders = [{ headers, Headers} | Results],
+    parse_next_component(Remainder, ResultsWithHeaders);
 parse_header(OrigData, Results, <<_, Rest/binary>>, Length) ->
     parse_header(OrigData, Results, Rest, Length + 1);
 parse_header(_OrigData, Results, <<>>, _Length) ->
