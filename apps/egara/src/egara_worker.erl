@@ -44,21 +44,17 @@ init(_Args) ->
     AdminConnConfig = proplists:get_value(admin_connection, Config, []),
     AdminUser = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
     AdminUserPrefix = <<AdminUser/binary, "@">>,
-    State = #state{ archival = Archival, event_mapping = EventMapping, storage = Storage, admin_user_prefix = AdminUserPrefix },
-    Imap = poolboy:checkout(egara_imap_pool, false, 10),
+    Imap = poolboy:checkout(egara_imap_pool, false, 10), %% FIXME: get rid of the pool
+    State = #state{ archival = Archival, event_mapping = EventMapping, imap = Imap, storage = Storage, admin_user_prefix = AdminUserPrefix },
     egara_imap:connect(Imap),
     egara_imap:get_path_tokens(Imap, self(), get_path_tokens),
-    poolboy:checkin(egara_imap_pool, Imap),
     { ok, State }.
 
 handle_call(_Request, _From, State) ->
     { reply, ok, State }.
 
 handle_cast(process_events, State) ->
-    Imap = poolboy:checkout(egara_imap_pool, false, 10),
-    TempState = State#state{ imap = Imap },
-    process_as_many_events_as_possible(TempState, ?BATCH_SIZE),
-    poolboy:checkin(egara_imap_pool, Imap),
+    process_as_many_events_as_possible(State, ?BATCH_SIZE),
     { noreply, State };
 
 handle_cast(_Msg, State) ->
