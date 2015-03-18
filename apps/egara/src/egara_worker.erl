@@ -287,7 +287,7 @@ post_process_event(QueueKey, unrecoverable_error, _State) ->
     lager:error("Event ~p could not be processed, dropping on floor", [QueueKey]),
     egara_notification_queue:remove(QueueKey),
     again;
-post_process_event(QueueKey, ignoring, _State) ->
+post_process_event(QueueKey, ignore, _State) ->
     %%lager:info("Ignoring ~p", [QueueKey]),
     egara_notification_queue:remove(QueueKey),
     again;
@@ -300,8 +300,11 @@ post_process_event(QueueKey, _, _State) ->
 process_notification_by_category(State, Notification, { ok, Category }, Type, QueueKey) when is_record(State, state) ->
     %% this version, with the { ok, _ } tuple is called due to maps:find returning { ok, Value }
     %% it is essentially a forwarder to other impls below
-    NotificationWithUsername = ensure_username(State, Notification, proplists:get_value(<<"user">>, Notification)),
-    process_notification_by_category(State, NotificationWithUsername, Category, Type, QueueKey);
+    case ensure_username(State, Notification, proplists:get_value(<<"user">>, Notification)) of
+        ignore -> ignore;
+        NotificationWithUsername ->
+            process_notification_by_category(State, NotificationWithUsername, Category, Type, QueueKey)
+    end;
 process_notification_by_category(State, Notification, imap_message_event, Type, QueueKey) ->
     case stored_folder_uid_from_notification(State, Notification) of
         notfound ->
@@ -335,7 +338,7 @@ process_notification_by_category(State, Notification, imap_quota_event, _Type, _
     egara_storage:store_notification(State#state.storage, Key, Notification);
 process_notification_by_category(_State, _Notification, _CategoryFail, _Type, _QueueKey) ->
     %% in here we have a notification that is not in our configuration
-    ignoring.
+    ignore.
 
 key_prefix_for_session_event(<<"Login">>) -> <<"session_login">>;
 key_prefix_for_session_event(<<"Logout">>) -> <<"session_logout">>;
