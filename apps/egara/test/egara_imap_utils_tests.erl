@@ -23,7 +23,10 @@ extract_path_from_uri_test_() ->
     [
         { <<"user/john.doe/Calendar@example.org">>,
           none, "/",
-          <<"imap://john.doe@example.org@kolab.example.org/Calendar;UIDVALIDITY=1424683684/;UID=1">> }
+          <<"imap://john.doe@example.org@kolab.example.org/Calendar;UIDVALIDITY=1424683684/;UID=1">> },
+        { <<"user/john.doe/Personal Calendar@example.org">>,
+          none, "/",
+          <<"imap://john.doe@example.org@kolab.example.org/Personal%20Calendar;UIDVALIDITY=1424683684/;UID=1">> }
     ],
     lists:foldl(fun({ Val, SharePrefix, Sep, Input }, Acc) -> [?_assert(Val == egara_imap_utils:extract_path_from_uri(SharePrefix, Sep, Input))|Acc] end,
                 [], Data).
