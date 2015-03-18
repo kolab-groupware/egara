@@ -275,10 +275,6 @@ notification_assigned(State, { QueueKey, Notification } ) ->
     Result = process_notification_by_category(State, Notification, EventCategory, EventType, QueueKey),
     post_process_event(QueueKey, Result, State).
 
-post_process_event(QueueKey, { get_mailbox_metadata, Notification }, State) ->
-    Folder = normalized_folder_path_from_notification(Notification, State),
-    start_imap_mailbox_metadata_fetch({ imap_mailbox_metadata, Folder, QueueKey, Notification }, Folder, State),
-    again;
 post_process_event(QueueKey, ok, _State) ->
     %%lager:info("Done with ~p", [QueueKey]),
     egara_notification_queue:remove(QueueKey),
@@ -315,10 +311,12 @@ process_notification_by_category(State, Notification, imap_message_event, Type, 
         FolderUid ->
             store_message_event(State, FolderUid, Notification, Type, QueueKey)
     end;
-process_notification_by_category(State, Notification, imap_mailbox_event, _Type, _QueueKey) ->
+process_notification_by_category(State, Notification, imap_mailbox_event, _Type, QueueKey) ->
     case stored_folder_uid_from_notification(State, Notification) of
         notfound ->
-            { get_mailbox_metadata, Notification };
+            Folder = normalized_folder_path_from_notification(Notification, State),
+            start_imap_mailbox_metadata_fetch({ imap_mailbox_metadata, Folder, QueueKey, Notification }, Folder, State),
+            continuing;
         Uid ->
             Key = generate_folder_event_key(Uid, Notification),
             egara_storage:store_notification(State#state.storage, Key, Notification)
