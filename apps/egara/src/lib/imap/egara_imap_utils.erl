@@ -90,7 +90,7 @@ imap_folder_path(SharedPrefix, HierarchyDelim, { ok, {_Scheme, User, Domain, _Po
     { VDomain, _ImapHost } = split_imap_uri_domain(string:tokens(Domain, "@")),
     [ [_|Path] | _ ] = string:tokens(FullPath, ";"),
     %%lager:info("PARSED IMAP URI: ~p ~p ~p", [User, VDomain, Path]),
-    CanonicalPath = imap_folder_path_from_parts(SharedPrefix, HierarchyDelim, User, VDomain, Path),
+    CanonicalPath = imap_folder_path_from_parts(SharedPrefix, HierarchyDelim, User, VDomain, http_uri:decode(Path)),
     %%lager:info("PUT TOGETHER AS: ~p", [CanonicalPath]),
     CanonicalPath.
 
