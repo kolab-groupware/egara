@@ -201,7 +201,7 @@ store_next_message_event(_State, _Notification, _Timestamp, _FolderUid, { none, 
 store_next_message_event(#state{ storage = Storage } = State, Notification, Timestamp, FolderUid, { MessageUid, UidSet } ) ->
     Key = generate_message_event_key(FolderUid, MessageUid, Timestamp),
     egara_storage:store_notification(Storage, Key, Notification),
-    store_message_event(State, Notification, Timestamp, FolderUid, egara_imap_uidset:next_uid(UidSet)).
+    store_next_message_event(State, Notification, Timestamp, FolderUid, egara_imap_uidset:next_uid(UidSet)).
 
 generate_message_event_key(FolderUid, MessageUid, Timestamp) when is_integer(MessageUid) ->
     UidBin = integer_to_binary(MessageUid),
