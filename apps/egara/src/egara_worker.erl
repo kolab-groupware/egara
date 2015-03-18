@@ -116,7 +116,7 @@ message_peek_received(State, #message_peek_data{ folder_path = FolderPath, messa
     message_peek_iteration(MessagePeekData, Notification, State),
     { noreply, State };
 message_peek_received(State, #message_peek_data{ notification = Notification } = MessagePeekData, Data) ->
-    PeekedNotification = lists:foldl(fun(Atom, Notif) -> add_entry_to_notification(Atom, Data, Notif) end, Notification, [flags, headers, body]),
+    PeekedNotification = lists:foldl(fun(Atom, Notif) -> add_entry_to_notification(Atom, Data, Notif) end, Notification, [flags, headers, message]),
     message_peek_iteration(MessagePeekData, PeekedNotification, State),
     { noreply, State }.
 
