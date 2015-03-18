@@ -37,8 +37,8 @@ parse(Data, Tag) when is_binary(Data) ->
 %% Private API
 log_error(Reason) -> lager:error("Could not fetch message: ~p", [Reason]).
 
-get_past_headers(<<" FETCH ", Data/binary>>) ->
-    find_open_parens(Data);
+get_past_headers(<<" OK ", Data/binary>>) -> { fini, [] };
+get_past_headers(<<" FETCH ", Data/binary>>) -> find_open_parens(Data);
 get_past_headers(<<_, Data/binary>>) -> get_past_headers(Data);
 get_past_headers(<<>>) -> { error, <<"Unparsable">> }.
 
@@ -101,8 +101,10 @@ parse_header(OrigData, Results, <<$}, Rest/binary>>, Length) ->
     HeaderString = binary:part(Rest, 2, Size), %% the 2 is for \r\n
     RawHeaders = binary:split(HeaderString, <<"\r\n">>, [global]),
     Headers = filter_headers(RawHeaders),
+    %%FIXME: make sure we have enough data loaded, otherwise continue
     Remainder = binary:part(Rest, Size, byte_size(Rest) - Size),
-    parse_next_component(Remainder, [{ headers, Headers } | Results]);
+    ResultsWithHeaders = [{ headers, Headers} | Results],
+    parse_next_component(Remainder, ResultsWithHeaders);
 parse_header(OrigData, Results, <<_, Rest/binary>>, Length) ->
     parse_header(OrigData, Results, Rest, Length + 1);
 parse_header(_OrigData, Results, <<>>, _Length) ->

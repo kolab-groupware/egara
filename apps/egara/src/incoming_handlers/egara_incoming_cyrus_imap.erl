@@ -130,5 +130,12 @@ check_complete(Continuation, EventMappings) ->
     end.
 
 notification_received(Term, EventMappings) ->
-    egara_notifications_receiver:notification_received(proplists:expand(EventMappings, Term)).
+    WithUtcTimestamp = addUtcTimestamp(Term, proplists:get_value(<<"timestamp">>, Term)),
+    egara_notifications_receiver:notification_received(proplists:expand(EventMappings, WithUtcTimestamp)).
 
+addUtcTimestamp(Term, undefined) ->
+    Timestamp = egara_utils:current_timestamp(),
+    [{ <<"timestamp_utc">>, Timestamp }|[{ <<"timestamp">>, Timestamp }|Term]];
+addUtcTimestamp(Term, Timestamp) ->
+    UtcTimestamp = egara_utils:normalize_timestamp(Timestamp),
+    [{ <<"timestamp_utc">>, UtcTimestamp }|Term].
