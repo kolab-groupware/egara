@@ -21,7 +21,7 @@
 %% https://tools.ietf.org/html/rfc3501#section-6.3.2
 
 %% Public API
-new(MBox) when is_binary(MBox) -> <<"EXAMINE ", MBox/binary>>.
+new(MBox) when is_binary(MBox) -> <<"EXAMINE \"", MBox/binary, "\"">>.
 
 parse(Data, Tag) ->
     case egara_imap_utils:check_response_for_failure(Data, Tag) of

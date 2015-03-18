@@ -20,7 +20,7 @@
 
 %% Public API
 new(Folder) when is_binary(Folder) ->
-    Message = <<"GETANNOTATION ", Folder/binary, " \"*\" \"value.shared\"">>.
+    Message = <<"GETANNOTATION \"", Folder/binary, "\" \"*\" \"value.shared\"">>.
 
 parse(Data, _Tag) when is_binary(Data) ->
     Lines = binary:split(Data, <<"\r\n">>, [global]),
