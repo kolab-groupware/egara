@@ -168,7 +168,7 @@ store_message_event(State, FolderUid, Notification, EventType, NotificationQueue
          EventType =:= <<"MessageCopy">> orelse
          EventType =:= <<"MessageMove">> ->
     %% we need to fetch message content here and begin generating history events while doing so
-    { NotificationWithUidset, UidSet } = uidset_from_notification(Notification),
+    { NotificationWithUidSet, UidSet } = uidset_from_notification(Notification),
     FolderPath = normalized_folder_path_from_notification(Notification, State),
     OldFolderUri = proplists:get_value(<<"oldMailboxID">>, Notification),
     case old_location(State, Notification, OldFolderUri) of
@@ -178,19 +178,19 @@ store_message_event(State, FolderUid, Notification, EventType, NotificationQueue
             Data = #message_event_getoldfolderuid_data{ folder = FolderPath, folder_uid = FolderUid,
                                                         uidset = UidSet,
                                                         notification_queue_key = NotificationQueueKey,
-                                                        notification = NotificationWithUidset,
+                                                        notification = NotificationWithUidSet,
                                                         old_folder_path = OldFolderPath, old_uid_set = OldUidSet },
             start_imap_mailbox_metadata_fetch(Data, OldFolderPath, State);
         { OldFolderUid, OldUidSet } ->
             Timestamp = timestamp_from_notification(Notification),
-            start_message_peek(State#state.imap, Timestamp, Notification, FolderPath, FolderUid, UidSet, OldFolderUid, OldUidSet, NotificationQueueKey)
+            start_message_peek(State#state.imap, Timestamp, NotificationWithUidSet, FolderPath, FolderUid, UidSet, OldFolderUid, OldUidSet, NotificationQueueKey)
     end,
     continuing;
 store_message_event(State, FolderUid, Notification, _Type, _NotificationQueueKey) ->
-    { NotificationWithUidset, UidSet } = uidset_from_notification(Notification),
+    { NotificationWithUidSet, UidSet } = uidset_from_notification(Notification),
     Timestamp = timestamp_from_notification(Notification),
     %%lager:info("storing an imap_message_event with keys ~p", [Keys]),
-    store_next_message_event(State, NotificationWithUidset, Timestamp, FolderUid, egara_imap_uidset:next_uid(UidSet)).
+    store_next_message_event(State, NotificationWithUidSet, Timestamp, FolderUid, egara_imap_uidset:next_uid(UidSet)).
 
 store_next_message_event(_State, _Notification, _Timestamp, _FolderUid, { none, _UidSet }) ->
     ok;
