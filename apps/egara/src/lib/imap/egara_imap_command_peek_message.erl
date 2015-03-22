@@ -60,7 +60,7 @@ parse_next_component(<<"BODY[HEADER] {", Data/binary>>, Parts) ->
 parse_next_component(<<"BODY[TEXT] {", Data/binary>>, Parts) ->
     parse_body(Data, Parts);
 parse_next_component(<<_, Data/binary>>, Parts) -> parse_next_component(Data, Parts);
-parse_next_component(<<"OK Completed", _/binary>>, Parts) -> Parts;
+parse_next_component(<<"OK Completed", _/binary>>, Parts) -> { fini, Parts };
 parse_next_component(<<>>, Parts) -> { fini, Parts }.
 
 parse_flags(Data, Parts) -> parse_flags(Data, Parts, Data, 0).
