@@ -195,6 +195,10 @@ next_command_after_response({ more, Fun, ParseState }, State) when is_function(F
     { next_state, wait_response, State#state{ parse_state = ParseState, current_command = State#state.current_command#command{ parse_fun = Fun } } };
 next_command_after_response({ more, ParseState }, State) ->
     { next_state, wait_response, State#state{ parse_state = ParseState } };
+next_command_after_response({ error, _ } = ErrorResponse, State) ->
+    notify_of_response(ErrorResponse, State#state.current_command),
+    gen_fsm:send_event(self(), process_command_queue),
+    { next_state, idle, State#state{ parse_state = none } };
 next_command_after_response({ fini, Response }, State) ->
     notify_of_response(Response, State#state.current_command),
     gen_fsm:send_event(self(), process_command_queue),
