@@ -18,7 +18,7 @@
 -module(egara_imap_command_peek_message).
 -export([new/1, parse/2, continue_parse/3]).
 -record(parse_state, { body_size, parts, data }).
--record(parts, { headers, body, flags }).
+-record(parts, { headers = <<"">>, body = <<"">>, flags = <<"">> }).
 
 %% https://tools.ietf.org/html/rfc3501#section-6.4.5
 
@@ -32,20 +32,20 @@ continue_parse(Data, _Tag, #parse_state{ body_size = Size, parts = Parts, data =
 parse(Data, Tag) when is_binary(Data) ->
     case egara_imap_utils:check_response_for_failure(Data, Tag) of
         ok -> process_parts(get_past_headers(Data));
-        { _, Reason } -> log_error(Reason), { fini, error }
+        { _, Reason } -> log_error(Reason), { error, Reason }
     end.
 
-process_parts({ Result, #parts{ headers = Headers, flags = Flags, body = Body } }) ->
-    { Result, [ { flags, binary:split(Flags, <<" ">>, [global]) },
-                { headers, filter_headers(binary:split(Headers, <<"\r\n">>, [global])) },
-                { message, <<Headers/binary, Body/binary>> } ] };
+process_parts(#parts{ headers = Headers, flags = Flags, body = Body }) ->
+    { fini, [ { flags, binary:split(Flags, <<" ">>, [global]) },
+              { headers, filter_headers(binary:split(Headers, <<"\r\n">>, [global])) },
+              { message, <<Headers/binary, Body/binary>> } ] };
 process_parts(Result) ->
     Result.
 
 %% Private API
 log_error(Reason) -> lager:error("Could not fetch message: ~p", [Reason]).
 
-get_past_headers(<<" OK ", _Data/binary>>) -> { fini, [] };
+get_past_headers(<<" OK ", _Data/binary>>) -> #parts{};
 get_past_headers(<<" FETCH ", Data/binary>>) -> find_open_parens(Data);
 get_past_headers(<<_, Data/binary>>) -> get_past_headers(Data);
 get_past_headers(<<>>) -> { error, <<"Unparsable">> }.
@@ -60,8 +60,8 @@ parse_next_component(<<"BODY[HEADER] {", Data/binary>>, Parts) ->
 parse_next_component(<<"BODY[TEXT] {", Data/binary>>, Parts) ->
     parse_body(Data, Parts);
 parse_next_component(<<_, Data/binary>>, Parts) -> parse_next_component(Data, Parts);
-parse_next_component(<<"OK Completed", _/binary>>, Parts) -> { fini, Parts };
-parse_next_component(<<>>, Parts) -> { fini, Parts }.
+parse_next_component(<<"OK Completed", _/binary>>, Parts) -> Parts;
+parse_next_component(<<>>, Parts) -> Parts.
 
 parse_flags(Data, Parts) -> parse_flags(Data, Parts, Data, 0).
 parse_flags(OrigData, Parts, <<$), Rest/binary>>, Length) ->
@@ -70,7 +70,7 @@ parse_flags(OrigData, Parts, <<$), Rest/binary>>, Length) ->
 parse_flags(OrigData, Parts, <<_, Data/binary>>, Length) ->
     parse_flags(OrigData, Parts, Data, Length + 1);
 parse_flags(_OrigData, Parts, <<>>, _Length) ->
-    { fini, Parts }.
+    Parts.
 
 parse_header(Data, Parts) -> parse_header(Data, Parts, Data, 0).
 parse_header(_OrigData, Parts, <<$}, Rest/binary>>, 0) ->
@@ -85,7 +85,7 @@ parse_header(OrigData, Parts, <<$}, Rest/binary>>, Length) ->
 parse_header(OrigData, Parts, <<_, Rest/binary>>, Length) ->
     parse_header(OrigData, Parts, Rest, Length + 1);
 parse_header(_OrigData, Parts, <<>>, _Length) ->
-    { fini, Parts }.
+    Parts.
 
 parse_body(Data, Parts) -> parse_body(Data, Parts, Data, 0).
 parse_body(_OrigData, Parts, <<$}, Rest/binary>>, 0) ->
@@ -98,7 +98,7 @@ parse_body(OrigData, Parts, <<$}, Rest/binary>>, Length) ->
 parse_body(OrigData, Parts, <<_, Rest/binary>>, Length) ->
     parse_body(OrigData, Parts, Rest, Length + 1);
 parse_body(_OrigData, Parts, <<>>, _Length) ->
-    { fini, Parts }.
+    Parts.
 
 try_body_parse(Data, Size, Parts) ->
     case Size > byte_size(Data) of
