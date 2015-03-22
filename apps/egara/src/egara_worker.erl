@@ -44,7 +44,7 @@ init(_Args) ->
     AdminConnConfig = proplists:get_value(admin_connection, Config, []),
     AdminUser = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
     AdminUserPrefix = <<AdminUser/binary, "@">>,
-    Imap = poolboy:checkout(egara_imap_pool, false, 10), %% FIXME: get rid of the pool
+    { ok, Imap } = egara_imap:start_link(),
     State = #state{ archival = Archival, event_mapping = EventMapping, imap = Imap, storage = Storage, admin_user_prefix = AdminUserPrefix },
     egara_imap:connect(Imap),
     egara_imap:get_path_tokens(Imap, self(), get_path_tokens),
