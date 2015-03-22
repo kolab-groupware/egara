@@ -76,10 +76,10 @@ handle_info({ #message_event_getfolderuid_data{ folder = Folder, notification_qu
                                                  notification = Notification, event_type = EventType }, Metadata }, State) ->
     %%TODO: and if we somehow end up with a folder we can't find, or the uniqueid is not there?
     FolderUid = proplists:get_value(<<"/vendor/cmu/cyrus-imapd/uniqueid">>, Metadata),
+    %%lager:info("Folder Uid to be stored ~p", [FolderUid]),
     egara_storage:store_folder_uid(State#state.storage, Folder, FolderUid),
     Result = store_message_event(State, FolderUid, Notification, EventType, NotificationQueueKey),
     notification_processing_result(NotificationQueueKey, Result, State),
-    %%lager:info("Message keys ~p, Folder Uid to be stored ~p", [Keys, FolderUid]),
     { noreply, State };
 handle_info({ #message_event_getoldfolderuid_data{ folder = FolderPath, folder_uid = FolderUid, uidset = UidSet,
                                                    notification_queue_key = NotificationQueueKey,
