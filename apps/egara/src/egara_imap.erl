@@ -20,7 +20,7 @@
 -behaviour(gen_fsm).
 
 %% API
--export([start_link/1, connect/1, disconnect/1, get_folder_annotations/4, get_message_headers_and_body/5, get_path_tokens/3]).
+-export([start_link/0, start_link/1, connect/1, disconnect/1, get_folder_annotations/4, get_message_headers_and_body/5, get_path_tokens/3]).
 
 %% gen_fsm callbacks
 -export([disconnected/2, authenticate/2, authenticating/2, idle/2, wait_response/2]).
@@ -33,6 +33,7 @@
 -record(command, { tag, mbox, message, from, response_token, parse_fun }).
 
 %% public API
+start_link() -> gen_fsm:start_link(?MODULE, [], []).
 start_link(_Args) -> gen_fsm:start_link(?MODULE, [], []).
 
 connect(PID) -> gen_fsm:send_all_state_event(PID, connect).
@@ -73,7 +74,6 @@ init(_Args) ->
     { ok, disconnected, State }.
 
 disconnected(connect, #state{ host = Host, port = Port, tls = TLS, socket = undefined } = State) ->
-    %%lager:info("Imap worker: Connecting to ~p:~p", [Host, Port]),
     {ok, Socket} = create_socket(Host, Port, TLS),
     { next_state, authenticate, State#state { socket = Socket } };
 disconnected(Command, State) when is_record(Command, command) ->
