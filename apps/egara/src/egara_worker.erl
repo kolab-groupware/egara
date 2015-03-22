@@ -133,8 +133,6 @@ message_peek_iteration(#message_peek_data{ timestamp = Timestamp, folder_path = 
         _ -> ok
     end.
 
-add_entry_to_notification(undefined, _Data, Notification) ->
-    Notification;
 add_entry_to_notification(headers, Data, Notification) ->
     Headers = proplists:get_value(headers, Data),
     NotificationWithGroupwareUid =
@@ -144,9 +142,12 @@ add_entry_to_notification(headers, Data, Notification) ->
     end,
     add_entry_to_notification(<<"headers">>, Headers, NotificationWithGroupwareUid);
 add_entry_to_notification(Atom, Data, Notification) when is_atom(Atom) ->
-    add_entry_to_notification(atom_to_binary(Atom, utf8), proplists:get_value(Atom, Data), Notification);
+    Key = atom_to_binary(Atom, utf8),
+    Value = proplists:get_value(Atom, Data),
+    add_entry_to_notification(Key, Value, Notification);
+add_entry_to_notification(Key, undefined, Notification) when is_binary(Key) ->
+    Notification;
 add_entry_to_notification(Key, Value, Notification) when is_binary(Key) ->
-    %%TODO: check if already there with proplists:get_value(Key, Data)
     [{ Key, Value } | Notification].
 
 store_folder_notification_with_uid(undefined, _Folder, Notification, _Storage) ->
