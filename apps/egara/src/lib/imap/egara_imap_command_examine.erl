@@ -26,9 +26,7 @@ new(MBox) when is_binary(MBox) -> <<"EXAMINE \"", MBox/binary, "\"">>.
 parse(Data, Tag) ->
     case egara_imap_utils:check_response_for_failure(Data, Tag) of
         ok -> { fini, ok };
-        { _, Reason } -> log_error(Reason), { fini, error }
+        { _, Reason } -> { error, Reason }
     end.
 
 %% Private API
-log_error(Reason) -> lager:error("Could not examine folder: ~p", [Reason]).
-

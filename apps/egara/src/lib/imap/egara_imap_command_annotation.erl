@@ -23,8 +23,13 @@ new(Folder) when is_binary(Folder) ->
     <<"GETANNOTATION \"", Folder/binary, "\" \"*\" \"value.shared\"">>.
 
 parse(Data, Tag) when is_binary(Data) ->
-    Lines = binary:split(Data, <<"\r\n">>, [global]),
-    { fini, lists:foldl(fun(Line, Acc) -> parseLine(Line, Acc, Tag) end, [], Lines) }.
+    case egara_imap_utils:check_response_for_failure(Data, Tag) of
+        ok ->
+            Lines = binary:split(Data, <<"\r\n">>, [global]),
+            { fini, lists:foldl(fun(Line, Acc) -> parseLine(Line, Acc, Tag) end, [], Lines) };
+        { _, Reason } ->
+            { error, Reason }
+    end.
 
 
 %% Private API
@@ -54,6 +59,9 @@ translate(Value) ->
     end.
 
 handle_possible_end(<<"OK", _/binary>>, Acc) ->
+    Acc;
+handle_possible_end(<<"NO ", Reason/binary>>, Acc) ->
+    lager:warning("Annotation error from imap server: ~p", [Reason]),
     Acc;
 handle_possible_end(<<"BAD ", Reason/binary>>, Acc) ->
     lager:warning("Annotation error from imap server: ~p", [Reason]),
