@@ -26,7 +26,8 @@ parse(Data, Tag) when is_binary(Data) ->
     case egara_imap_utils:check_response_for_failure(Data, Tag) of
         ok ->
             Lines = binary:split(Data, <<"\r\n">>, [global]),
-            { fini, lists:foldl(fun(Line, Acc) -> parseLine(Line, Acc, Tag) end, [], Lines) };
+            Rv = lists:foldl(fun(Line, Acc) -> parseLine(Line, Acc, Tag) end, [], Lines),
+            { fini, Rv };
         { _, Reason } ->
             { error, Reason }
     end.
@@ -46,6 +47,7 @@ parseLine(Data, Acc, Tag) ->
         _ -> lager:warning("Unexpected response from imap server: ~p", [Data]), Acc
     end.
 
+process_pieces([MBox, Key, _, _, _, Value, _], Acc) when MBox =/= <<>> -> [ { Key, translate(Value) } | Acc ];
 process_pieces([_, _MBox, _, Key, _, _, _, Value, _], Acc) -> [ { Key, translate(Value) } | Acc ];
 process_pieces(_, Acc) -> Acc.
 

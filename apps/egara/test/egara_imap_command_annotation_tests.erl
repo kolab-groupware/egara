@@ -18,6 +18,8 @@
 -module(egara_imap_command_annotation_tests).
 -include_lib("eunit/include/eunit.hrl").
 
+% c("apps/egara/test/egara_imap_command_annotation_tests.erl"). eunit:test(egara_imap_command_annotation).
+
 parse_test_() ->
     Data =
     [
@@ -37,9 +39,23 @@ parse_test_() ->
                 {<<"/vendor/kolab/color">>,<<"32CD32">>}
                ]
             }
+        },
+        {
+            <<"EG0002">>,
+            <<"* ANNOTATION user/john.doe/Sent@example.org \"/vendor/x-toltec/test\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/horde/share-params\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/kolab/h-share-attr-desc\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/kolab/uniqueid\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/kolab/pxfb-readable-for\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/kolab/incidences-for\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/kolab/folder-type\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/kolab/folder-test\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/kolab/displayname\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/kolab/color\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/kolab/activesync\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/uniqueid\" (\"value.shared\" \"237357ec-7610-422e-9e55-0bae83caf58a\")\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/squat\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/size\" (\"value.shared\" \"401\")\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/sieve\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/sharedseen\" (\"value.shared\" \"false\")\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/pop3showafter\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/pop3newuidl\" (\"value.shared\" \"true\")\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/partition\" (\"value.shared\" \"default\")\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/news2mail\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/lastupdate\" (\"value.shared\" \"23-Mar-2015 15:19:29 +0100\")\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/lastpop\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/expire\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/vendor/cmu/cyrus-imapd/duplicatedeliver\" (\"value.shared\" \"false\")\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/thread\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/specialuse\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/sort\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/comment\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/checkperiod\" (\"value.shared\" NIL)\r\n         * ANNOTATION user/john.doe/Sent@example.org \"/check\" (\"value.shared\" NIL)\r\n         EG0002 OK Completed">>,
+            { fini, [
+                {<<"/vendor/cmu/cyrus-imapd/duplicatedeliver">>,false},
+                {<<"/vendor/cmu/cyrus-imapd/lastupdate">>,<<"23-Mar-2015 15:19:29 +0100">>},
+                {<<"/vendor/cmu/cyrus-imapd/partition">>,<<"default">>},
+                {<<"/vendor/cmu/cyrus-imapd/pop3newuidl">>,true},
+                {<<"/vendor/cmu/cyrus-imapd/sharedseen">>,false},
+                {<<"/vendor/cmu/cyrus-imapd/size">>,401},
+                {<<"/vendor/cmu/cyrus-imapd/uniqueid">>,<<"237357ec-7610-422e-9e55-0bae83caf58a">>}
+                    ]
+            }
         }
     ],
-    lists:foldl(fun({ Tag, ServerData, Expected }, Acc) -> [?_assert(Expected == egara_imap_command_annotation:parse(ServerData, Tag))|Acc] end, [], Data).
+    lists:foldl(fun({ Tag, ServerData, Expected }, Acc) -> [?_assertEqual(Expected, egara_imap_command_annotation:parse(ServerData, Tag))|Acc] end, [], Data).
 
 new_test_() ->
     Data =
@@ -47,5 +63,5 @@ new_test_() ->
         %% mailbox, command
         { <<"user/john.doe/Calendar/Personal Calendar@example.org">>, <<"GETANNOTATION \"user/john.doe/Calendar/Personal Calendar@example.org\" \"*\" \"value.shared\"">> }
     ],
-    lists:foldl(fun({ Mailbox, Command }, Acc) -> [?_assert(Command == egara_imap_command_annotation:new(Mailbox))|Acc] end, [], Data).
+    lists:foldl(fun({ Mailbox, Command }, Acc) -> [?_assertEqual(Command, egara_imap_command_annotation:new(Mailbox))|Acc] end, [], Data).
 
