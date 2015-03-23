@@ -21,6 +21,7 @@
           add/2, add/3, remove/1, remove_all/0,
           assign/2, assign_next/1, assigned_to/1,
           release/1, release/2, release_orphaned/0, release_all/0,
+          migrate_failures/0,
           max_key/0]).
 -include_lib("stdlib/include/qlc.hrl").
 -record(egara_incoming_notification, { id, claimed = 0, fails = 0, term }).
@@ -32,11 +33,15 @@ install(Nodes) ->
     mnesia:create_schema(Nodes),
     rpc:multicall(Nodes, application, start, [mnesia]),
     %% create index for claimed
-    try mnesia:create_table(egara_incoming_notification,
+    try
+        mnesia:create_table(egara_incoming_notification,
                             [{ attributes, record_info(fields, egara_incoming_notification) },
                              { type, ordered_set },
-                             { disc_copies, Nodes }]) of
-        _ -> ok
+                             { disc_copies, Nodes }]),
+        mnesia:create_table(egara_incoming_notification_fails,
+                            [{ attributes, record_info(fields, egara_incoming_notification) },
+                             { disc_copies, Nodes }])
+    of _ -> ok
     catch
         error:_ -> ok
     end.
@@ -135,6 +140,19 @@ release_orphaned() ->
                 qlc:fold(fun(Record, N) ->
                                  Failed = Record#egara_incoming_notification.fails + 1,
                                  mnesia:write(Record#egara_incoming_notification{ claimed = 0, fails = Failed }), N + 1 end,
+                         0, QH)
+        end,
+    mnesia:activity(transaction, F).
+
+migrate_failures() ->
+    F = fun() ->
+                Timestamp = egara_utils:current_timestamp(),
+                QH = qlc:q([ Record || #egara_incoming_notification{ fails = Fails } = Record <- mnesia:table(egara_incoming_notification), Fails >= ?MAX_FAILURES ]),
+                qlc:fold(fun(#egara_incoming_notification{ id = Key } = Record, N) ->
+                                 IntBin = integer_to_binary(N),
+                                 mnesia:write(Record#egara_incoming_notification{ id = <<Timestamp/binary, "_", IntBin/binary>> }),
+                                 remove(Key),
+                                 N + 1 end,
                          0, QH)
         end,
     mnesia:activity(transaction, F).
