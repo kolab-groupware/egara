@@ -103,12 +103,8 @@ code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 %% private API
-message_peek_received(State, #message_peek_data{ folder_path = FolderPath, folder_uid = FolderUid, notification = Notification } = MessagePeekData, mailboxnotfound) ->
-    lager:error("Mailbox ~p (~p) could not be found for message notification { ~p }", [FolderPath, FolderUid, Notification]),
-    message_peek_iteration(MessagePeekData, Notification, State),
-    { noreply, State };
-message_peek_received(State, #message_peek_data{ folder_path = FolderPath, message_uid = MessageUid, notification = Notification } = MessagePeekData, error) ->
-    lager:error("Message ~p (~p) could not be found for message notification { ~p }", [MessageUid, FolderPath, Notification]),
+message_peek_received(State, #message_peek_data{ folder_path = FolderPath, message_uid = MessageUid, notification = Notification } = MessagePeekData, { error, Reason }) ->
+    lager:error("Message ~p in ~p not found; reason: ~p", [MessageUid, FolderPath, Reason]),
     message_peek_iteration(MessagePeekData, Notification, State),
     { noreply, State };
 message_peek_received(State, #message_peek_data{ notification = Notification } = MessagePeekData, Data) ->
