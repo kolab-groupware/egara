@@ -23,7 +23,8 @@
           release/1, release/2, release_orphaned/0, release_all/0,
           max_key/0]).
 -include_lib("stdlib/include/qlc.hrl").
--record(egara_incoming_notification, { id, claimed = 0, term }).
+-record(egara_incoming_notification, { id, claimed = 0, fails = 0, term }).
+-define(MAX_FAILURES, 5).
 
 install(Nodes) ->
     rpc:multicall(Nodes, application, stop, [mnesia]),
@@ -84,7 +85,7 @@ assign(#egara_incoming_notification{ id = Key }, PID) when is_pid(PID) ->
 assign(Key, Fun) when is_function(Fun) ->
     F = fun() ->
                 QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
-                             Rec#egara_incoming_notification.claimed =:= 0, Rec#egara_incoming_notification.id =:= Key ]),
+                             Rec#egara_incoming_notification.fails < ?MAX_FAILURES, Rec#egara_incoming_notification.claimed =:= 0, Rec#egara_incoming_notification.id =:= Key ]),
                 QC = qlc:cursor(QH),
                 Answers = qlc:next_answers(QC, 1),
                 case Answers of
@@ -96,7 +97,7 @@ assign(Key, Fun) when is_function(Fun) ->
 assign(Key, PID) when is_pid(PID) ->
     F = fun() ->
                 QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
-                             Rec#egara_incoming_notification.claimed =:= 0, Rec#egara_incoming_notification.id =:= Key ]),
+                             Rec#egara_incoming_notification.fails < ?MAX_FAILURES, Rec#egara_incoming_notification.claimed =:= 0, Rec#egara_incoming_notification.id =:= Key ]),
                 QC = qlc:cursor(QH),
                 Answers = qlc:next_answers(QC, 1),
                 case Answers of
@@ -131,7 +132,10 @@ release_orphaned() ->
     F = fun() ->
                 QH = qlc:q([ Record || #egara_incoming_notification{ claimed = PID } = Record <- mnesia:table(egara_incoming_notification),
                              is_pid(PID), process_info(PID) =:= undefined]),
-                qlc:fold(fun(Record, N) -> mnesia:write(Record#egara_incoming_notification{ claimed = 0 }), N + 1 end, 0, QH)
+                qlc:fold(fun(Record, N) ->
+                                 Failed = Record#egara_incoming_notification.fails + 1,
+                                 mnesia:write(Record#egara_incoming_notification{ claimed = 0, fails = Failed }), N + 1 end,
+                         0, QH)
         end,
     mnesia:activity(transaction, F).
 
@@ -159,7 +163,7 @@ assigned_to(Key) ->
 assign_next(PID) when is_pid(PID) ->
     F = fun() ->
                 QH = qlc:q([ Rec || Rec <- mnesia:table(egara_incoming_notification),
-                             Rec#egara_incoming_notification.claimed =:= 0]),
+                             Rec#egara_incoming_notification.claimed =:= 0, Rec#egara_incoming_notification.fails < ?MAX_FAILURES]),
                 QC = qlc:cursor(QH),
                 Answers = qlc:next_answers(QC, 1),
                 case Answers of
