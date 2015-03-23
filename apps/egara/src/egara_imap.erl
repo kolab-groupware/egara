@@ -169,8 +169,8 @@ handle_info({tcp_closed, Socket}, _StateName, #state{ socket = Socket, host = Ho
 handle_info({ { selected, MBox }, ok }, StateName, State) ->
     %%lager:info("~p Selected mbox ~p", [self(), MBox]),
     { next_state, StateName, State#state{ current_mbox = MBox } };
-handle_info({ { selected, MBox }, _ }, StateName, State) ->
-    lager:info("Failed to select mbox ~p", [MBox]),
+handle_info({ { selected, MBox }, { error, Reason } }, StateName, State) ->
+    lager:info("Failed to select mbox ~p: ~p", [MBox, Reason]),
     NewQueue = queue:filter(fun(Command) -> notify_of_mbox_failure_during_filter(Command, Command#command.mbox =:= MBox) end, State#state.command_queue),
     { next_state, StateName, State#state{ command_queue = NewQueue } };
 handle_info(_Info, StateName, State) ->
@@ -188,7 +188,7 @@ notify_of_response(Response, #command { from = From, response_token = Token }) -
 notify_of_response(_, _) -> ok.
 
 %% the return is inverted for filtering
-notify_of_mbox_failure_during_filter(Command, true) -> notify_of_response(mailboxnotfound, Command), false;
+notify_of_mbox_failure_during_filter(Command, true) -> notify_of_response({ error, mailboxnotfound }, Command), false;
 notify_of_mbox_failure_during_filter(_Command, false) -> true.
 
 next_command_after_response({ more, Fun, ParseState }, State) when is_function(Fun, 3) ->
