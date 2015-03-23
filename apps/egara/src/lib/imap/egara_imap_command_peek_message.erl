@@ -16,7 +16,7 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara_imap_command_peek_message).
--export([new/1, parse/2, continue_parse/3]).
+-export([new/1, parse/2, continue_parse/3, test/0]).
 -record(parse_state, { body_size, parts, data }).
 -record(parts, { headers = <<"">>, body = <<"">>, flags = <<"">> }).
 
@@ -32,7 +32,7 @@ continue_parse(Data, _Tag, #parse_state{ body_size = Size, parts = Parts, data =
 parse(Data, Tag) when is_binary(Data) ->
     case egara_imap_utils:check_response_for_failure(Data, Tag) of
         ok -> process_parts(get_past_headers(Data));
-        { _, Reason } -> log_error(Reason), { error, Reason }
+        { _, Reason } -> { error, Reason }
     end.
 
 process_parts(#parts{ headers = Headers, flags = Flags, body = Body }) ->
@@ -43,8 +43,6 @@ process_parts(Result) ->
     Result.
 
 %% Private API
-log_error(Reason) -> lager:error("Could not fetch message: ~p", [Reason]).
-
 get_past_headers(<<" OK ", _Data/binary>>) -> #parts{};
 get_past_headers(<<" FETCH ", Data/binary>>) -> find_open_parens(Data);
 get_past_headers(<<_, Data/binary>>) -> get_past_headers(Data);
