@@ -35,6 +35,7 @@ start(_StartType, _StartArgs) ->
     egara_notification_queue:start(),
     lager:info("    Clearing orphans since last start"),
     egara_notification_queue:release_all(),
+    egara_notification_queue:migrate_failures(),
     lager:info("    Starting the main supervisor ..."),
     egara_sup:start_link().
 

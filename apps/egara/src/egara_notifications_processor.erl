@@ -41,6 +41,7 @@ process_backlog_if_notifications(error) ->
     %%lager:info("ERRRORS, AND NO NOTIFICATIONS!"),
     ok;
 process_backlog_if_notifications(none) ->
+    egara_notification_queue:migrate_failures(),
     process_backlog_if_notifications(egara_notification_queue:release_orphaned()),
     %%lager:info("NO NOTIFICATIONS! ~p", [egara_notification_queue:next_unassigned()]),
     ok;

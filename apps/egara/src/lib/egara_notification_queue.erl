@@ -25,6 +25,7 @@
           max_key/0]).
 -include_lib("stdlib/include/qlc.hrl").
 -record(egara_incoming_notification, { id, claimed = 0, fails = 0, term }).
+-record(egara_incoming_notification_fails, { id, term }).
 -define(MAX_FAILURES, 5).
 
 install(Nodes) ->
@@ -39,7 +40,7 @@ install(Nodes) ->
                              { type, ordered_set },
                              { disc_copies, Nodes }]),
         mnesia:create_table(egara_incoming_notification_fails,
-                            [{ attributes, record_info(fields, egara_incoming_notification) },
+                            [{ attributes, record_info(fields, egara_incoming_notification_fails) },
                              { disc_copies, Nodes }])
     of _ -> ok
     catch
@@ -148,9 +149,10 @@ migrate_failures() ->
     F = fun() ->
                 Timestamp = egara_utils:current_timestamp(),
                 QH = qlc:q([ Record || #egara_incoming_notification{ fails = Fails } = Record <- mnesia:table(egara_incoming_notification), Fails >= ?MAX_FAILURES ]),
-                qlc:fold(fun(#egara_incoming_notification{ id = Key } = Record, N) ->
+                qlc:fold(fun(#egara_incoming_notification{ id = Key, term = Term } = Record, N) ->
                                  IntBin = integer_to_binary(N),
-                                 mnesia:write(Record#egara_incoming_notification{ id = <<Timestamp/binary, "_", IntBin/binary>> }),
+                                 mnesia:write(#egara_incoming_notification_fails{ id = <<Timestamp/binary, "_", IntBin/binary>>,
+                                                                                  term = Term }),
                                  remove(Key),
                                  N + 1 end,
                          0, QH)
