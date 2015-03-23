@@ -16,7 +16,7 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara_imap_command_peek_message).
--export([new/1, parse/2, continue_parse/3, test/0]).
+-export([new/1, parse/2, continue_parse/3]).
 -record(parse_state, { body_size, parts, data }).
 -record(parts, { headers = <<"">>, body = <<"">>, flags = <<"">> }).
 
