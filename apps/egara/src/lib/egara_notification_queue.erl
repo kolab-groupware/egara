@@ -18,7 +18,7 @@
 -module(egara_notification_queue).
 -export([ install/1, start/0,
           notification/1, next_unassigned/0, process_next_unassigned/2,
-          add/2, add/3, remove/1,
+          add/2, add/3, remove/1, remove_all/0,
           assign/2, assign_next/1, assigned_to/1,
           release/1, release/2, release_orphaned/0, release_all/0,
           max_key/0]).
@@ -65,6 +65,9 @@ remove(Key) ->
                  end
                  end,
     mnesia:activity(transaction, F).
+
+remove_all() ->
+    mnesia:clear_table(egara_incoming_notification).
 
 notification(Key) ->
     F = fun() ->
