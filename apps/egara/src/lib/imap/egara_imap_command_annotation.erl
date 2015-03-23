@@ -22,21 +22,26 @@
 new(Folder) when is_binary(Folder) ->
     <<"GETANNOTATION \"", Folder/binary, "\" \"*\" \"value.shared\"">>.
 
-parse(Data, _Tag) when is_binary(Data) ->
+parse(Data, Tag) when is_binary(Data) ->
     Lines = binary:split(Data, <<"\r\n">>, [global]),
-    { fini, lists:foldl(fun parseLine/2, [], Lines) }.
+    { fini, lists:foldl(fun(Line, Acc) -> parseLine(Line, Acc, Tag) end, [], Lines) }.
 
 
 %% Private API
-parseLine(<<"* ANNOTATION", Data/binary>>, Acc) ->
+parseLine(<<" ", Data/binary>>, Acc, Tag) ->
+    parseLine(Data, Acc, Tag);
+parseLine(<<"* ANNOTATION ", Data/binary>>, Acc, _Tag) ->
     Pieces = binary:split(Data, <<"\"">>, [global]),
     process_pieces(Pieces, Acc);
-parseLine(<<>>, Acc) ->
+parseLine(<<>>, Acc, _Tag) ->
     Acc;
-parseLine(Data, Acc) ->
-    handle_possible_end(binary:split(Data, <<" ">>), Acc).
+parseLine(Data, Acc, Tag) ->
+    case binary:match(Data, Tag) of
+        { 0, End } -> handle_possible_end(binary:part(Data, End + 1, byte_size(Data) - End - 1), Acc);
+        _ -> lager:warning("Unexpected response from imap server: ~p", [Data]), Acc
+    end.
 
-process_pieces([_MBox, Key, _, _, _, Value, _], Acc) -> [ { Key, translate(Value) } | Acc ];
+process_pieces([_, _MBox, _, Key, _, _, _, Value, _], Acc) -> [ { Key, translate(Value) } | Acc ];
 process_pieces(_, Acc) -> Acc.
 
 translate(<<"false">>) -> false;
