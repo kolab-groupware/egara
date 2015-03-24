@@ -99,12 +99,32 @@ code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 %% private API
+
+%% init() helpers
 start_imap() ->
     { ok, Imap } = egara_imap:start_link(),
     egara_imap:connect(Imap),
     egara_imap:get_path_tokens(Imap, self(), get_path_tokens),
     Imap.
 
+transform_events_config_to_dict({ ok, EventConfig }) ->
+    lists:foldl(fun({ Type, Events }, EventMap) -> add_events_to_dict(Type, Events, EventMap) end, dict:new(), EventConfig);
+transform_events_config_to_dict(_) ->
+    dict:new(). %% return an empty map .. this is going to be boring
+
+add_events_to_dict(Type, Events, EventMap) when is_list(Events) ->
+    F = fun(Event, Map) ->
+                EventBin = list_to_binary(Event),
+                case dict:is_key(EventBin, Map) of
+                   true -> dict:update(EventBin, Type, Map);
+                   _ -> dict:store(EventBin, Type, Map)
+                end
+            end,
+    lists:foldl(F, EventMap, Events);
+add_events_to_dict(_Type, _Events, EventMap) ->
+    EventMap.
+
+%% 
 message_peek_received(State, #message_peek_data{ folder_path = FolderPath, message_uid = MessageUid, notification = Notification } = MessagePeekData, { error, Reason }) ->
     lager:error("Message ~p in ~p not found; reason: ~p", [MessageUid, FolderPath, Reason]),
     message_peek_iteration(MessagePeekData, Notification, State),
@@ -230,22 +250,6 @@ uidset_from_notification(Notification, undefined) ->
     { [{ <<"uidset">>, UidSetString }|Notification], egara_imap_uidset:parse(UidSetString) };
 uidset_from_notification(Notification, UidSetString) ->
     { Notification, egara_imap_uidset:parse(UidSetString) }.
-
-add_events_to_dict(Type, Events, EventMap) when is_list(Events) ->
-    F = fun(Event, Map) ->
-                case dict:is_key(Event, Map) of
-                   true -> dict:update(Event, Type, Map);
-                   _ -> dict:store(Event, Type, Map)
-                end
-            end,
-    lists:foldl(F, EventMap, Events);
-add_events_to_dict(_Type, _Events, EventMap) ->
-    EventMap.
-
-transform_events_config_to_dict({ ok, EventConfig }) ->
-    lists:foldl(fun({ Type, Events }, EventMap) -> add_events_to_dict(Type, Events, EventMap) end, dict:new(), EventConfig);
-transform_events_config_to_dict(_) ->
-    dict:new(). %% return an empty map .. this is going to be boring
 
 process_as_many_events_as_possible(_State, 0) ->
     egara_notifications_processor:queue_drained(),

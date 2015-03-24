@@ -51,6 +51,7 @@ init(_) ->
     { ok, #state {} }.
 
 handle_call({ store_notification, Keys, Notification }, _From, State) when is_list(Keys) ->
+    %%lager:info("Notification----> ~p = ~p", [Keys, Notification]),
     NewState = ensure_connected(State),
     Json = jsx:encode(Notification),
     store_notification_json(Keys, Json, NewState, {});

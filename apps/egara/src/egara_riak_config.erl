@@ -38,9 +38,9 @@ init(_Args) ->
     Config = application:get_env(egara, riak, []),
     Nodes = sanitize_node_config(proplists:get_value(nodes, Config, missing)),
     State = #state{ nodes = Nodes },
-    BucketTypes = proplists:get_value(bucket_types, Config, []),
     { Host, Port } = erlang:hd(Nodes),
     { ok, Connection } = riakc_pb_socket:start_link(Host, Port),
+    BucketTypes = proplists:get_value(bucket_types, Config, []),
     setup_bucket_types(Connection, BucketTypes),
     riakc_pb_socket:stop(Connection),
     { ok, State }.
@@ -77,7 +77,8 @@ next_node(_Length, #state{ pos = Pos, nodes = Nodes } = State) ->
     { reply, Tuple, State#state{ pos = Pos + 1 } }.
 
 %%TODO: current almost entirely useless since the API does not allow creating new bucket types
-setup_bucket_types(Connection, [{ Bucket, Properties } | Tail]) -> 
+setup_bucket_types(Connection, [{ BucketList, Properties } | Tail]) -> 
+    Bucket = list_to_binary(BucketList),
     CurrentTypeProperties = riakc_pb_socket:get_bucket_type(Connection, Bucket),
     case CurrentTypeProperties of
         { ok, _ } -> %% TODO check that the properties actually match up so as not to set the type up EVERY time

@@ -31,7 +31,7 @@
 
 start_reception() ->
     %% get the path to the listen socket, either from the app config or here
-    DefaultSocketPath = <<"/var/lib/imap/socket/notify">>,
+    DefaultSocketPath = "/var/lib/imap/socket/notify",
     case application:get_env(cyrus) of
         { ok, Config } when is_list(Config) -> SocketPath = proplists:get_value(notification_socket_path, Config, DefaultSocketPath);
         _ -> SocketPath = DefaultSocketPath
@@ -47,15 +47,15 @@ start_reception() ->
         { error, _ } -> ok
     end,
 
-    if CleanUp =:= ok -> bindSocket(SocketPath), ok;
+    if CleanUp =:= ok -> bindSocket(list_to_binary(SocketPath)), ok;
        true -> error
     end.
 
-bindSocket(SocketPath) ->
+bindSocket(SocketPath) when is_binary(SocketPath) ->
     { ok, Socket } = procket:socket(?PF_LOCAL, ?SOCK_DGRAM, 0),
     Sun = <<?PF_LOCAL:16/native, % sun_family
             SocketPath/binary,   % address
-            0:((?UNIX_PATH_MAX-byte_size(SocketPath))*8) %% zero out the rest
+            0:((?UNIX_PATH_MAX - byte_size(SocketPath)) * 8) %% zero out the rest
           >>,
 
     case procket:bind(Socket, Sun) of
