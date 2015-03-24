@@ -30,8 +30,7 @@
 -define(MIN_SLEEP_MS, 1).
 
 start_reception() ->
-    %% get the path to the listen socket, either from the app config
-    %% or here
+    %% get the path to the listen socket, either from the app config or here
     DefaultSocketPath = <<"/var/lib/imap/socket/notify">>,
     case application:get_env(cyrus) of
         { ok, Config } when is_list(Config) -> SocketPath = proplists:get_value(notification_socket_path, Config, DefaultSocketPath);
