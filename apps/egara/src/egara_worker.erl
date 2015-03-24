@@ -26,7 +26,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -define(BATCH_SIZE, 500).
 
--record(state, { archival = true, event_mapping, storage, imap, admin_user_prefix, imap_path_delim = "/", imap_shared_prefix = none }).
+-record(state, { archival = true, event_mapping, storage, imap, user_blacklist, imap_path_delim = "/", imap_shared_prefix = none }).
 -record(message_peek_data, { timestamp, folder_path, folder_uid, notification, notification_queue_key, message_uid, uid_set, old_folder_uid, old_message_uid, old_uid_set }).
 -record(message_event_getfolderuid_data, { folder, notification_queue_key, notification, event_type }).
 -record(message_event_getoldfolderuid_data, { folder, folder_uid, uidset, notification_queue_key, notification, old_folder_path, old_uid_set }).
@@ -40,14 +40,10 @@ init(_Args) ->
     { ok, Storage } = egara_storage:start_link(),
     %% get the admin user, whose events we will ignore
     Archival = application:get_env(egara, archival, false),
-    Config = application:get_env(egara, imap, []),
-    AdminConnConfig = proplists:get_value(admin_connection, Config, []),
-    AdminUser = list_to_binary(proplists:get_value(user, AdminConnConfig, "cyrus-admin")),
-    AdminUserPrefix = <<AdminUser/binary, "@">>,
-    { ok, Imap } = egara_imap:start_link(),
-    State = #state{ archival = Archival, event_mapping = EventMapping, imap = Imap, storage = Storage, admin_user_prefix = AdminUserPrefix },
-    egara_imap:connect(Imap),
-    egara_imap:get_path_tokens(Imap, self(), get_path_tokens),
+    ImapConfig = application:get_env(egara, imap, []),
+    UserBlacklist = lists:foldl(fun(User, Acc) -> [list_to_binary(User)|Acc] end, [], proplists:get_value(user_blacklist, ImapConfig, [])),
+    Imap = start_imap(),
+    State = #state{ archival = Archival, event_mapping = EventMapping, imap = Imap, storage = Storage, user_blacklist = UserBlacklist },
     { ok, State }.
 
 handle_call(_Request, _From, State) ->
@@ -103,6 +99,12 @@ code_change(_OldVsn, State, _Extra) ->
     { ok, State }.
 
 %% private API
+start_imap() ->
+    { ok, Imap } = egara_imap:start_link(),
+    egara_imap:connect(Imap),
+    egara_imap:get_path_tokens(Imap, self(), get_path_tokens),
+    Imap.
+
 message_peek_received(State, #message_peek_data{ folder_path = FolderPath, message_uid = MessageUid, notification = Notification } = MessagePeekData, { error, Reason }) ->
     lager:error("Message ~p in ~p not found; reason: ~p", [MessageUid, FolderPath, Reason]),
     message_peek_iteration(MessagePeekData, Notification, State),
@@ -350,8 +352,8 @@ timestamp_from_notification(Notification) ->
 ensure_username(_State, Notification, undefined) ->
     Notification;
 ensure_username(State, Notification, UserLogin) ->
-    case binary:match(UserLogin, State#state.admin_user_prefix) of
-        nomatch ->
+    case lists:member(UserLogin, State#state.user_blacklist) of
+        false ->
             FromStorage = egara_storage:fetch_userdata_for_login(State#state.storage, UserLogin),
             %%lager:info("Storage said ... ~p", [FromStorage]),
             add_username_from_storage(State#state.storage, Notification, UserLogin, FromStorage);

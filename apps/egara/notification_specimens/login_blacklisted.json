@@ -1,0 +1,1 @@
+{"event":"Logout","timestamp":"2015-03-23T17:52:44.918+01:00","service":"imaps","serverDomain":"::1","serverPort":993,"clientIP":"::1","clientPort":43519,"uri":"imap://kolab34.example.org","pid":27394,"user":"cyrus-admin","vnd.cmu.sessionId":"kolab34.example.org-27394-1427126093-1-13314457703567120736"}
