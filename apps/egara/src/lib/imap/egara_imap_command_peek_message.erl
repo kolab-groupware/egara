@@ -35,6 +35,7 @@ parse(Data, Tag) when is_binary(Data) ->
         { _, Reason } -> { error, Reason }
     end.
 
+%% Private API
 process_parts(#parts{ headers = Headers, flags = Flags, body = Body }) ->
     { fini, [ { flags, binary:split(Flags, <<" ">>, [global]) },
               { headers, filter_headers(binary:split(Headers, <<"\r\n">>, [global])) },
@@ -42,7 +43,6 @@ process_parts(#parts{ headers = Headers, flags = Flags, body = Body }) ->
 process_parts(Result) ->
     Result.
 
-%% Private API
 get_past_headers(<<" OK ", _Data/binary>>) -> #parts{};
 get_past_headers(<<" FETCH ", Data/binary>>) -> find_open_parens(Data);
 get_past_headers(<<_, Data/binary>>) -> get_past_headers(Data);
@@ -105,7 +105,7 @@ try_body_parse(Data, Size, Parts) ->
         false ->
             Body = binary:part(Data, 2, Size), %% the 2 is for \r\n
             Remainder = binary:part(Data, Size, -1),
-            parse_next_component(Remainder, Parts#parts{ body = Body })
+            process_parts(parse_next_component(Remainder, Parts#parts{ body = Body }))
     end.
 
 filter_headers(RawHeaders) ->
