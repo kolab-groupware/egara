@@ -27,7 +27,7 @@ new(MessageID) when is_integer(MessageID) -> new(integer_to_binary(MessageID));
 new(MessageID) when is_binary(MessageID) -> <<"UID FETCH ",  MessageID/binary, " (FLAGS BODY.PEEK[HEADER] BODY.PEEK[TEXT])">>.
 
 continue_parse(Data, _Tag, #parse_state{ body_size = Size, parts = Parts, data = PrevData }) ->
-    try_body_parse(<<Data/binary, PrevData/binary>>, Size, Parts).
+    try_body_parse(<<PrevData/binary, Data/binary>>, Size, Parts).
 
 parse(Data, Tag) when is_binary(Data) ->
     case egara_imap_utils:check_response_for_failure(Data, Tag) of
