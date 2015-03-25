@@ -104,7 +104,7 @@ try_body_parse(Data, Size, Parts) ->
             { more, fun ?MODULE:continue_parse/3, #parse_state{ body_size = Size, parts = Parts, data = Data } };
         false ->
             Body = binary:part(Data, 2, Size), %% the 2 is for \r\n
-            Remainder = binary:part(Data, Size, -1),
+            Remainder = binary:part(Data, Size, byte_size(Data) - Size),
             process_parts(parse_next_component(Remainder, Parts#parts{ body = Body }))
     end.
 
