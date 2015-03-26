@@ -57,14 +57,14 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     { noreply, State }.
 
+handle_info({'EXIT', _ParentPid, shutdown}, State) ->
+    exit(shutdown);
 handle_info({'EXIT', From, _Reason}, State) ->
     %% look out for our ldap connection dropping
     if From =:= State#state.ldap_connection -> lager:warning("Just lost our ldap connection..."),
                                                { noreply, State#state{ ldap_connection = none } };
        true -> { noreply, State }
     end;
-handle_info({'EXIT', _ParentPid, shutdown}, State) ->
-    exit(shutdown);
 handle_info(_Info, State) ->
     { noreply, State }.
 
