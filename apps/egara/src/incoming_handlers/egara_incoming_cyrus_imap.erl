@@ -19,15 +19,10 @@
 -behavior(egara_incoming_handler).
 
 %% API
--export([start_reception/0, launchRecvCyrusNotification/1, recvCyrusNotification/4]).
+-export([start_reception/0, launchRecvCyrusNotification/1, recvCyrusNotification/3]).
 
+-include_lib("procket/include/procket.hrl").
 -include_lib("kernel/include/file.hrl").
-
--define(PF_LOCAL, 1).
--define(SOCK_DGRAM, 2).
--define(UNIX_PATH_MAX, 108).
--define(MAX_SLEEP_MS, 500).
--define(MIN_SLEEP_MS, 1).
 
 start_reception() ->
     %% get the path to the listen socket, either from the app config or here
@@ -52,6 +47,7 @@ start_reception() ->
     end.
 
 bindSocket(SocketPath) when is_binary(SocketPath) ->
+    inert:start(),
     { ok, Socket } = procket:socket(?PF_LOCAL, ?SOCK_DGRAM, 0),
     Sun = <<?PF_LOCAL:16/native, % sun_family
             SocketPath/binary,   % address
@@ -89,20 +85,20 @@ launchRecvCyrusNotification(Socket) ->
                        { <<"event">>, <<"MessageMove">>}
                      }
                     ],
-    { ok, spawn_link(?MODULE, recvCyrusNotification, [Socket, EventMappings, none, ?MIN_SLEEP_MS])  }.
+    { ok, spawn_link(?MODULE, recvCyrusNotification, [Socket, EventMappings, none])  }.
 
-recvCyrusNotification(Socket, EventMappings, JsonContinuation, SleepMs) ->
+recvCyrusNotification(Socket, EventMappings, JsonContinuation) ->
+    { ok, read } = inert:poll(Socket),
     case procket:recvfrom(Socket, 16#FFFF) of
         { error, eagain } ->
-            NewSleepMs = min(SleepMs * 2, ?MAX_SLEEP_MS),
-            timer:sleep(NewSleepMs),
-            recvCyrusNotification(Socket, EventMappings, JsonContinuation, NewSleepMs);
+            timer:sleep(100),
+            recvCyrusNotification(Socket, EventMappings, JsonContinuation);
         { ok, Buf } ->
             Components = binary:split(Buf, <<"\0">>, [global]),
             %%lager:info("~p", [Components]),
             Json = cherryPickNotification(Components),
             NewJsonContinuation = decode(Json, EventMappings, JsonContinuation),
-            recvCyrusNotification(Socket, EventMappings, NewJsonContinuation, ?MIN_SLEEP_MS)
+            recvCyrusNotification(Socket, EventMappings, NewJsonContinuation)
     end.
 
 %% returns the next continuation, or none if .. well .. none
