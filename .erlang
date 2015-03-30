@@ -7,6 +7,7 @@
 
         application:start(crypto).
     application:start(procket).
+    application:start(inert).
 
     application:start(jsx).
 
@@ -15,8 +16,6 @@
     application:start(riakc).
 
     application:start(poolboy).
-
-    application:start(jobs).
 
     ssl:start(). %% For cyrus
 

@@ -7,10 +7,15 @@
   {applications, [
                   kernel,
                   stdlib,
-                  jobs,
+                  crypto,
+                  ssl,
                   jsx,
+                  compiler,
+                  syntax_tools,
+                  goldrush,
                   lager,
                   procket,
+                  inert,
                   mnesia,
                   poolboy,
                   riakc
