@@ -1,16 +1,16 @@
-REBAR = $(shell which rebar || echo ./rebar)
+REBAR = $(shell which rebar 2>/dev/null || echo ./rebar)
 ENABLE_STATIC = no
 
 all: deps-up egara
 
 deps:
-	rebar get-deps
+	$(REBAR) get-deps
 
 deps-up: deps
-	rebar update-deps
+	$(REBAR) update-deps
 
 egara:
-	ENABLE_STATIC=no rebar compile
+	ENABLE_STATIC=no $(REBAR) compile
 
 run:
 	erl -pa apps/*/ebin deps/*/ebin -config app -s egara
