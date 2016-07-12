@@ -16,13 +16,13 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -module(egara).
-
 -behaviour(application).
 
 %% Application callbacks
--export([start/0, start/2, stop/1]).
+-export([start/0, start/2, stop/0, stop/1]).
 
-start() -> application:start(egara).
+start() -> ssl:start(), application:start(egara).
+stop() -> application:stop(egara).
 
 %% ===================================================================
 %% Application callbacks
@@ -40,4 +40,4 @@ start(_StartType, _StartArgs) ->
     egara_sup:start_link().
 
 stop(_State) ->
-    ok.
+    application:stop(egara).
