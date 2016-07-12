@@ -45,7 +45,6 @@ init([]) ->
     %% there is one more egara_imap process to allow non-egara_worker process access as needed through a shared one
     Pools = [
              { egara_ldap_pool, egara_ldap, [ { size, WorkerSize }, { max_overflow, 0 }], [ ] },
-             { egara_imap_pool, egara_imap, [ { size, WorkerSize + 1 }, { max_overflow, 0 }], [ ] },
              { egara_notification_workers, egara_worker, [ { size, WorkerSize }, { max_overflow, 0 }], [ ] }
             ],
     PoolSpecs = lists:map(fun({Name, Module, PoolConfig, WorkerArgs}) ->
