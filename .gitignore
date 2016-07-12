@@ -7,3 +7,6 @@ db
 log
 .*.swp
 Mnesia*
+_build
+rebar.lock
+rel/
