@@ -1,7 +1,11 @@
 REBAR = $(shell which rebar3 2>/dev/null || echo ./rebar3)
 ENABLE_STATIC = no
 
-all: ENABLE_STATIC=$(ENABLE_STATIC) $(REBAR) compile
+all:
+	ENABLE_STATIC=$(ENABLE_STATIC) $(REBAR) compile
+
+clean:
+	$(REBAR) clean
 
 run:
 	$(REBAR) shell --config app.config --apps egara
