@@ -53,7 +53,10 @@ notifications_processor_notifier(Total) when is_number(Total) ->
     end.
 
 start_receiver([]) -> ok;
-start_receiver([cyrus|Tail]) -> lager:info("Starting receiver: cyrus"), egara_incoming_cyrus_imap:start_reception(), start_receiver(Tail);
+start_receiver([cyrus|Tail]) ->
+    lager:info("Starting receiver: cyrus"),
+    egara_incoming_cyrus_imap:start_reception(),
+    start_receiver(Tail);
 start_receiver([_|Tail]) -> start_receiver(Tail).
 
 start_notification_reception() ->
