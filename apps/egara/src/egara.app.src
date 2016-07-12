@@ -17,7 +17,8 @@
                   inert,
                   mnesia,
                   poolboy,
-                  riakc
+                  riakc,
+                  eimap
                  ]},
   {mod, { egara, []}},
   {env, [
