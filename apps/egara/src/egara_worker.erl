@@ -26,7 +26,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -define(BATCH_SIZE, 500).
 
--record(state, { archival = true, event_mapping, storage, imap, user_blacklist, imap_path_delim = "/", imap_shared_prefix = none }).
+-record(state, { archival = [gropware_objects], event_mapping, storage, imap, user_blacklist, imap_path_delim = "/", imap_shared_prefix = none }).
 -record(message_peek_data, { timestamp, folder_path, folder_uid, notification, notification_queue_key, message_uid, uid_set, old_folder_uid, old_message_uid, old_uid_set }).
 -record(message_event_getfolderuid_data, { folder, notification_queue_key, notification, event_type }).
 -record(message_event_getoldfolderuid_data, { folder, folder_uid, uidset, notification_queue_key, notification, old_folder_path, old_uid_set }).
@@ -39,7 +39,7 @@ init(_Args) ->
     EventMapping = transform_events_config_to_dict(application:get_env(events_to_track)),
     { ok, Storage } = egara_storage:start_link(),
     %% get the admin user, whose events we will ignore
-    Archival = application:get_env(egara, archival, false),
+    Archival = application:get_env(egara, archival, []),
     ImapConfig = application:get_env(egara, imap, []),
     UserBlacklist = lists:foldl(fun(User, Acc) -> [list_to_binary(User)|Acc] end, [], proplists:get_value(user_blacklist, ImapConfig, [])),
     Imap = start_imap(),
